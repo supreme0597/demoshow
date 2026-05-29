@@ -794,8 +794,8 @@
       const logos = getSystemLogos(content);
       if (!logos.length) return '';
       const chips = logos.map((s) => {
-        const imgUrl = `${s.name}.png`;
-        return `<span class="system-logo" style="background:${s.color}" title="${escapeHtml(s.name)}"><img class="system-logo-img hidden" src="${escapeHtml(imgUrl)}" alt="" onload="this.classList.remove('hidden'); this.nextElementSibling.style.display='none'; this.parentElement.style.background='transparent'; this.parentElement.style.padding='0'; this.parentElement.style.boxShadow='none';" onerror="this.remove()"><span class="system-logo-text">${escapeHtml(s.label)}</span></span>`;
+        const initUrl = `${s.name}.svg`;
+        return `<span class="system-logo" style="background:${s.color}" title="${escapeHtml(s.name)}"><img class="system-logo-img hidden" src="${escapeHtml(initUrl)}" alt="" onload="this.classList.remove('hidden'); this.nextElementSibling.style.display='none'; this.parentElement.style.background='transparent'; this.parentElement.style.padding='0'; this.parentElement.style.boxShadow='none';" onerror="const formats=['svg','png','ico','jpg']; const cur=this.getAttribute('src'); const ext=cur.split('.').pop(); const idx=formats.indexOf(ext); if(idx>=0 && idx<formats.length-1){ this.src=cur.substring(0,cur.lastIndexOf('.')+1)+formats[idx+1]; }else{ this.remove(); }"><span class="system-logo-text">${escapeHtml(s.label)}</span></span>`;
       }).join('');
       return `<span class="system-logos">${chips}</span>`;
     }
