@@ -259,6 +259,45 @@
       border-radius: 4px;
       vertical-align: middle;
     }
+
+    /* 中间执行回合折叠组件样式 */
+    .turns-collapsed {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-bottom: 3px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+    }
+    .turns-collapsed-summary {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+      outline: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .turns-collapsed-summary:hover {
+      color: var(--accent);
+    }
+    .turns-collapsed[open] {
+      border-style: solid;
+      border-color: var(--border);
+    }
+    .turns-collapsed .turn-block {
+      margin-top: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .turns-collapsed .turn-block:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
   </style>
 </head>
 <body>
@@ -1312,9 +1351,35 @@
             <div class="card-progress"><div class="progress-fill" style="width:${state.percent}%;background:${state.color}"></div></div>
           </header>
           <div class="card-body">
-            ${card.turns.length ? card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('') : renderEmptyTurn(card)}
+            ${renderTurns(card)}
           </div>
         </article>`;
+    }
+
+    function renderTurns(card) {
+      if (!card.turns.length) return renderEmptyTurn(card);
+      if (card.turns.length === 1) {
+        return renderTurn(card, card.turns[0], 0, 1);
+      }
+      
+      const collapsedTurns = card.turns.slice(0, -1);
+      const lastTurn = card.turns[card.turns.length - 1];
+      const lastIndex = card.turns.length - 1;
+      
+      const collapsedHtml = `
+        <details class="turns-collapsed">
+          <summary class="turns-collapsed-summary">
+            ⚙️ 展开/隐藏 ${collapsedTurns.length} 个中间执行回合
+          </summary>
+          <div class="turns-collapsed-content">
+            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('')}
+          </div>
+        </details>
+      `;
+      
+      const lastTurnHtml = renderTurn(card, lastTurn, lastIndex, card.turns.length);
+      
+      return collapsedHtml + lastTurnHtml;
     }
 
     function renderTurn(card, turn, index, totalTurns) {
