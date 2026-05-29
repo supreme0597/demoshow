@@ -253,6 +253,12 @@
       transform: translateY(-1px);
       box-shadow: 0 3px 8px rgba(0,0,0,0.2);
     }
+    .system-logo-img {
+      height: 18px;
+      object-fit: contain;
+      border-radius: 4px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
@@ -787,7 +793,10 @@
     function renderSystemLogos(content) {
       const logos = getSystemLogos(content);
       if (!logos.length) return '';
-      const chips = logos.map((s) => `<span class="system-logo" style="background:${s.color}" title="${escapeHtml(s.name)}">${escapeHtml(s.label)}</span>`).join('');
+      const chips = logos.map((s) => {
+        const imgUrl = `${s.name}.png`;
+        return `<span class="system-logo" style="background:${s.color}" title="${escapeHtml(s.name)}"><img class="system-logo-img hidden" src="${escapeHtml(imgUrl)}" alt="" onload="this.classList.remove('hidden'); this.nextElementSibling.style.display='none'; this.parentElement.style.background='transparent'; this.parentElement.style.padding='0'; this.parentElement.style.boxShadow='none';" onerror="this.remove()"><span class="system-logo-text">${escapeHtml(s.label)}</span></span>`;
+      }).join('');
       return `<span class="system-logos">${chips}</span>`;
     }
 
