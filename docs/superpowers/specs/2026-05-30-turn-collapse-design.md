@@ -9,7 +9,7 @@ status: active
 
 ## 1. 背景与目标
 在 Kanban UI 中，某些卡片可能会因为频繁的工具或命令执行（例如多次 bash 运行）而产生大量的中间进行中 Turns。这会导致看板卡片整体高度过长，降低了看板的可读性和整洁度。
-为了提升看板的用户体验，本设计的核心目标是将这些多余的中间执行过程（即第 1 到第 N-1 个 Turn）进行交互式折叠收纳，默认仅直显最后一个 Turn（最终成果或最新进展），并在用户需要审计时提供一键展开的交互能力。
+为了提升看板的用户体验，本设计的核心目标是将这些多余的中间执行过程（即第 2 到第 N-1 个 Turn，保留首个 Turn 和最新 Turn 直显）进行交互式折叠收纳，默认仅直显首个 Turn（包含任务目标和用户输入）和最后一个 Turn（最终成果或最新进展），并在中间提供一键展开的交互能力。
 
 ## 2. 详细方案
 
@@ -63,12 +63,13 @@ status: active
 ```javascript
     function renderTurns(card) {
       if (!card.turns.length) return renderEmptyTurn(card);
-      if (card.turns.length === 1) {
-        return renderTurn(card, card.turns[0], 0, 1);
+      if (card.turns.length <= 2) {
+        return card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('');
       }
       
-      // 有多个 Turns，折叠前 N-1 个，直显最后一个
-      const collapsedTurns = card.turns.slice(0, -1);
+      // 有多个 Turns（大于2），保留第一个和最后一个，折叠中间的
+      const firstTurnHtml = renderTurn(card, card.turns[0], 0, card.turns.length);
+      const collapsedTurns = card.turns.slice(1, -1);
       const lastTurn = card.turns[card.turns.length - 1];
       const lastIndex = card.turns.length - 1;
       
@@ -78,14 +79,14 @@ status: active
             ⚙️ 展开/隐藏 ${collapsedTurns.length} 个中间执行回合
           </summary>
           <div class="turns-collapsed-content">
-            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('')}
+            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index + 1, card.turns.length)).join('')}
           </div>
         </details>
       `;
       
       const lastTurnHtml = renderTurn(card, lastTurn, lastIndex, card.turns.length);
       
-      return collapsedHtml + lastTurnHtml;
+      return firstTurnHtml + collapsedHtml + lastTurnHtml;
     }
 ```
 

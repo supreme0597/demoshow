@@ -1358,11 +1358,12 @@
 
     function renderTurns(card) {
       if (!card.turns.length) return renderEmptyTurn(card);
-      if (card.turns.length === 1) {
-        return renderTurn(card, card.turns[0], 0, 1);
+      if (card.turns.length <= 2) {
+        return card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('');
       }
       
-      const collapsedTurns = card.turns.slice(0, -1);
+      const firstTurnHtml = renderTurn(card, card.turns[0], 0, card.turns.length);
+      const collapsedTurns = card.turns.slice(1, -1);
       const lastTurn = card.turns[card.turns.length - 1];
       const lastIndex = card.turns.length - 1;
       
@@ -1372,14 +1373,14 @@
             ⚙️ 展开/隐藏 ${collapsedTurns.length} 个中间执行回合
           </summary>
           <div class="turns-collapsed-content">
-            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('')}
+            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index + 1, card.turns.length)).join('')}
           </div>
         </details>
       `;
       
       const lastTurnHtml = renderTurn(card, lastTurn, lastIndex, card.turns.length);
       
-      return collapsedHtml + lastTurnHtml;
+      return firstTurnHtml + collapsedHtml + lastTurnHtml;
     }
 
     function renderTurn(card, turn, index, totalTurns) {
