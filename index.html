@@ -610,7 +610,6 @@
 
       let currentCard = initCard || cards[0];
       let pendingUserEvents = [];
-      let firstTodoWriteSeen = false;
 
       for (const [msgIndex, events] of messagesGroup.entries()) {
         const isUser = events.some(e => e.role === 'user');
@@ -622,7 +621,6 @@
 
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
-        let isFirstTodoWriteThisMessage = false;
         if (todowriteEvent) {
           const inputTodos = todowriteEvent.part.state?.input?.todos || [];
           for (const card of cards) {
@@ -632,20 +630,9 @@
               card.tempStatus = liveTodo.status;
             }
           }
-          // NOTE: 第一次 todowrite 是"产出规划"动作，属于初始化阶段
-          if (!firstTodoWriteSeen && initCard) {
-            firstTodoWriteSeen = true;
-            isFirstTodoWriteThisMessage = true;
-            targetCards.add(initCard);
-            // 同时推进 currentCard 到下一个活跃任务，避免后续事件滞留在 initCard
-            const activeCard = pickActiveCard(todowriteEvent, cards);
-            if (activeCard) currentCard = activeCard;
-          } else {
-            firstTodoWriteSeen = true;
-            const activeCard = pickActiveCard(todowriteEvent, cards);
-            currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
-            targetCards.add(currentCard);
-          }
+          const activeCard = pickActiveCard(todowriteEvent, cards);
+          currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
+          targetCards.add(currentCard);
         } else {
           for (const event of events) {
             if (event.type === 'tool') {
@@ -684,11 +671,7 @@
           for (const event of events) {
             if (event.type === 'tool') {
               if (event.part?.tool === 'todowrite') {
-                if (isFirstTodoWriteThisMessage) {
-                  if (card === initCard) assignToolToTurn(event, turn);
-                } else {
-                  if (card === currentCard) assignToolToTurn(event, turn);
-                }
+                if (card === currentCard) assignToolToTurn(event, turn);
               } else {
                 const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
                 if (matched === card) {
