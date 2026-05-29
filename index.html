@@ -622,7 +622,7 @@
 
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
-
+        let isFirstTodoWriteThisMessage = false;
         if (todowriteEvent) {
           const inputTodos = todowriteEvent.part.state?.input?.todos || [];
           for (const card of cards) {
@@ -635,6 +635,7 @@
           // NOTE: 第一次 todowrite 是"产出规划"动作，属于初始化阶段
           if (!firstTodoWriteSeen && initCard) {
             firstTodoWriteSeen = true;
+            isFirstTodoWriteThisMessage = true;
             targetCards.add(initCard);
             // 同时推进 currentCard 到下一个活跃任务，避免后续事件滞留在 initCard
             const activeCard = pickActiveCard(todowriteEvent, cards);
@@ -683,7 +684,11 @@
           for (const event of events) {
             if (event.type === 'tool') {
               if (event.part?.tool === 'todowrite') {
-                if (card === currentCard) assignToolToTurn(event, turn);
+                if (isFirstTodoWriteThisMessage) {
+                  if (card === initCard) assignToolToTurn(event, turn);
+                } else {
+                  if (card === currentCard) assignToolToTurn(event, turn);
+                }
               } else {
                 const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
                 if (matched === card) {
