@@ -598,19 +598,32 @@
         }
       }
 
+      // 将事件按物理 messageIndex 组织，还原 AI 单词回复的整体语境
+      const messagesGroup = new Map();
+      for (const event of timeline) {
+        const key = event.messageIndex !== undefined ? event.messageIndex : -1;
+        if (!messagesGroup.has(key)) {
+          messagesGroup.set(key, []);
+        }
+        messagesGroup.get(key).push(event);
+      }
+
       let currentCard = initCard || cards[0];
-      let currentTurn = null;
       let pendingUserEvents = [];
 
-      for (let i = 0; i < timeline.length; i++) {
-        const event = timeline[i];
-        if (event.type === 'text' && event.role === 'user') {
-          pendingUserEvents.push(event);
+      for (const [msgIndex, events] of messagesGroup.entries()) {
+        const isUser = events.some(e => e.role === 'user');
+        
+        if (isUser) {
+          pendingUserEvents.push(...events.filter(e => e.type === 'text'));
           continue;
         }
 
-        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
-          const inputTodos = event.part.state?.input?.todos || [];
+        const targetCards = new Set();
+        const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
+
+        if (todowriteEvent) {
+          const inputTodos = todowriteEvent.part.state?.input?.todos || [];
           for (const card of cards) {
             if (card === initCard) continue;
             const liveTodo = inputTodos.find((t) => t.content === card.todo.content);
@@ -618,35 +631,65 @@
               card.tempStatus = liveTodo.status;
             }
           }
-
-          const activeCard = pickActiveCard(event, cards);
+          const activeCard = pickActiveCard(todowriteEvent, cards);
           currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
-          currentTurn = ensureTurn(currentCard, pendingUserEvents, currentTurn);
-          assignToolToTurn(event, currentTurn);
-          pendingUserEvents = [];
-          continue;
+          targetCards.add(currentCard);
+        } else {
+          for (const event of events) {
+            if (event.type === 'tool') {
+              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+              if (matched) targetCards.add(matched);
+            } else if (event.type === 'patch' || event.type === 'diffs') {
+              const artifacts = artifactsFromEvent(event);
+              for (const art of artifacts) {
+                const matched = matchArtifactToCard(art, cards) || currentCard;
+                if (matched) targetCards.add(matched);
+              }
+            }
+          }
         }
 
-        const matchedCard = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
-        if (!matchedCard) continue;
-        if (matchedCard !== currentCard && !pendingUserEvents.length) currentTurn = null;
-        currentCard = matchedCard;
-        currentTurn = ensureTurn(matchedCard, pendingUserEvents, currentTurn);
+        if (targetCards.size === 0) {
+          targetCards.add(currentCard);
+        }
+
+        const textEvents = events.filter(e => e.type === 'text' && e.role === 'assistant');
+        const reasoningEvents = events.filter(e => e.type === 'reasoning');
+
+        for (const card of targetCards) {
+          const turn = ensureTurn(card, pendingUserEvents, null);
+          turn.aiTexts.push(...textEvents);
+          turn.reasoning.push(...reasoningEvents);
+          
+          if (textEvents.length > 0) {
+            turn.lastEventIndexOfText = timeline.indexOf(textEvents[textEvents.length - 1]);
+          }
+
+          for (const event of events) {
+            if (event.type === 'tool') {
+              if (event.part?.tool === 'todowrite') {
+                if (card === currentCard) assignToolToTurn(event, turn);
+              } else {
+                const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+                if (matched === card) {
+                  assignToolToTurn(event, turn);
+                  turn.lastEventIndexOfNonText = timeline.indexOf(event);
+                }
+              }
+            } else if (event.type === 'patch' || event.type === 'diffs') {
+              distributeArtifactEvent(event, cards, card, turn);
+              turn.lastEventIndexOfNonText = timeline.indexOf(event);
+            }
+          }
+
+          if (card !== initCard) {
+            currentCard = card;
+          }
+        }
+
         pendingUserEvents = [];
-
-        if (event.type === 'text' && event.role === 'assistant') {
-          currentTurn.aiTexts.push(event);
-          currentTurn.lastEventIndexOfText = i;
-        }
-        else if (event.type === 'reasoning') currentTurn.reasoning.push(event);
-        else if (event.type === 'tool') {
-          assignToolToTurn(event, currentTurn);
-          currentTurn.lastEventIndexOfNonText = i;
-        } else if (event.type === 'patch' || event.type === 'diffs') {
-          distributeArtifactEvent(event, cards, matchedCard, currentTurn);
-          currentTurn.lastEventIndexOfNonText = i;
-        }
       }
+
       if (pendingUserEvents.length) attachPendingUsers(cards[0], pendingUserEvents);
       return cards;
     }
