@@ -710,10 +710,19 @@
     }
 
     function pickAssignableCard(event, cards, currentCard) {
-      const match = matchEventToCard(event, cards);
+      const activePool = cards.filter((c) => c.todo.status === 'in_progress' || c.todo.status === 'completed');
+      const match = matchEventToCard(event, cards, 2);
       if (match && match.todo.status !== 'pending') return match;
+      
+      if (activePool.length > 1) {
+        const weakMatch = matchEventToCard(event, cards, 1);
+        if (weakMatch && weakMatch.todo.status !== 'pending' && activePool.includes(weakMatch)) {
+          return weakMatch;
+        }
+      }
+
       if (currentCard && currentCard.todo.status !== 'pending') return currentCard;
-      return cards.find((card) => card.todo.status === 'in_progress') || cards.find((card) => card.todo.status === 'completed') || null;
+      return activePool[0] || null;
     }
 
     function matchToolArtifactToCard(event, cards) {
@@ -729,7 +738,7 @@
       return cards.find((card) => card.todo.content === active.content) || null;
     }
 
-    function matchEventToCard(event, cards) {
+    function matchEventToCard(event, cards, minScore = 2) {
       const haystack = eventSearchText(event);
       if (!haystack) return null;
       let best = null;
@@ -741,7 +750,7 @@
           bestScore = score;
         }
       }
-      return bestScore >= 2 ? best : null;
+      return bestScore >= minScore ? best : null;
     }
 
     function eventSearchText(event) {
