@@ -569,8 +569,30 @@
 
     function groupMessagesToCards(timeline, todos) {
       if (!todos.length) return fallbackCards(timeline);
+      
+      const firstWriteIdx = timeline.findIndex(e => e.type === 'tool' && e.part?.tool === 'todowrite');
       const cards = todos.map((todo, index) => createCard(todo, index));
-      let currentCard = cards[0];
+      
+      let initCard = null;
+      let hasPreEvents = false;
+      
+      if (firstWriteIdx > 0) {
+        const preEvents = timeline.slice(0, firstWriteIdx);
+        const hasSubstance = preEvents.some(e => e.type === 'text' || e.type === 'tool');
+        if (hasSubstance) {
+          hasPreEvents = true;
+          initCard = createCard({
+            content: "会话初始化与前置调研：明确意图并产出规划",
+            status: "completed",
+            priority: "high"
+          }, -1);
+          initCard.taskTitle = "会话初始化与前置调研";
+          initCard.taskGoal = "分析用户输入意图，探索项目上下文，并规划后续 TODO 任务列表。";
+          cards.unshift(initCard);
+        }
+      }
+
+      let currentCard = initCard || cards[0];
       let currentTurn = null;
       let pendingUserEvents = [];
 
@@ -582,8 +604,9 @@
         }
 
         if (event.type === 'tool' && event.part?.tool === 'todowrite') {
-          currentCard = pickActiveCard(event, cards) || currentCard;
-          currentTurn = ensureTurn(currentCard || cards[0], pendingUserEvents, currentTurn);
+          const activeCard = pickActiveCard(event, cards);
+          currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
+          currentTurn = ensureTurn(currentCard, pendingUserEvents, currentTurn);
           assignToolToTurn(event, currentTurn);
           pendingUserEvents = [];
           continue;
