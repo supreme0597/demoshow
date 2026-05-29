@@ -788,20 +788,44 @@
     }
 
     function pickAssignableCard(event, cards, currentCard) {
-      const match = matchEventToCard(event, cards, 2);
-      // NOTE: 内容匹配优先，但已完成的卡片不应抢占 in_progress 卡片的事件
-      if (match && match.tempStatus === 'in_progress') return match;
-      if (match && match.tempStatus === 'completed') {
-        // 内容匹配到已完成卡片 → 优先检查是否有 in_progress 的卡片可以接收
-        const inProgress = cards.find((card) => card.tempStatus === 'in_progress');
-        if (inProgress) return inProgress;
-        return match;
+      let bestCard = null;
+      let highestScore = -0.1;
+
+      const inProgressCards = cards.filter(c => c.tempStatus === 'in_progress');
+      const contextCard = (currentCard && currentCard.tempStatus === 'in_progress') 
+        ? currentCard 
+        : (inProgressCards[0] || currentCard);
+
+      const haystack = eventSearchText(event) || '';
+
+      for (const card of cards) {
+        let baseScore = scoreTodoMatch(haystack, card.todo.content);
+
+        let statusMultiplier = 1.0;
+        if (card.tempStatus === 'completed') {
+          statusMultiplier = 0.1;
+        } else if (card.tempStatus === 'pending') {
+          statusMultiplier = 0.2;
+        }
+
+        // 强行保护当前的上下文卡片不被过度降权
+        if (card === contextCard) {
+          statusMultiplier = Math.max(statusMultiplier, 1.0);
+        }
+
+        let finalScore = baseScore * statusMultiplier;
+
+        if (baseScore === 0 && card === contextCard) {
+          finalScore += 1.0;
+        }
+
+        if (finalScore > highestScore) {
+          highestScore = finalScore;
+          bestCard = card;
+        }
       }
-      if (currentCard && currentCard.tempStatus === 'in_progress') return currentCard;
-      const inProgress = cards.find((card) => card.tempStatus === 'in_progress');
-      if (inProgress) return inProgress;
-      if (currentCard && currentCard.tempStatus !== 'pending') return currentCard;
-      return cards.find((card) => card.tempStatus === 'completed') || null;
+
+      return highestScore > 0 ? bestCard : null;
     }
 
     function matchToolArtifactToCard(event, cards) {
@@ -848,7 +872,8 @@
         ...(event.diffs || []).map((diff) => diff.file),
         ...(part.files || [])
       ];
-      return bits.filter(Boolean).join(' ').toLowerCase();
+      // 截断超长字符串，防止 skill 文档全文污染特征池
+      return bits.filter(Boolean).map(s => String(s).slice(0, 300)).join(' ').toLowerCase();
     }
 
     function scoreTodoMatch(haystack, todoContent) {
