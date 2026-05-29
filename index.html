@@ -1250,7 +1250,15 @@
       if (part.tool === 'skill') return renderSkillTool(part);
       const title = part.state?.title || part.title || part.state?.metadata?.description || part.state?.input?.description || part.tool || 'tool';
       const output = part.state?.output || part.state?.metadata?.output || '';
-      return `<div><strong>${toolIcon(part.tool)} ${escapeHtml(part.tool || 'tool')}</strong>: ${escapeHtml(title)}${output ? `<details><summary>查看输出</summary><pre class="diff">${escapeHtml(String(output).slice(0, 4000))}</pre></details>` : ''}</div>`;
+      let outputHtml = '';
+      if (output) {
+        if (part.tool === 'task') {
+          outputHtml = `<details><summary style="cursor:pointer">查看输出</summary><div style="margin-top:6px;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;max-height:350px;overflow-y:auto;font-size:11px;line-height:1.6;color:var(--text-secondary);">${renderMarkdown(String(output))}</div></details>`;
+        } else {
+          outputHtml = `<details><summary style="cursor:pointer">查看输出</summary><pre class="diff">${escapeHtml(String(output).slice(0, 4000))}</pre></details>`;
+        }
+      }
+      return `<div><strong>${toolIcon(part.tool)} ${escapeHtml(part.tool || 'tool')}</strong>: ${escapeHtml(title)}${outputHtml}</div>`;
     }
 
     function renderSkillTool(part) {
