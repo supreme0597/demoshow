@@ -1,0 +1,19 @@
+workflow: full
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: full
+base_ref: null
+design_doc: docs/superpowers/specs/2026-05-29-session-kanban-design.md
+plan: docs/superpowers/plans/2026-05-29-session-kanban-plan.md
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-05-29-session-kanban-verify.md
+branch_status: handled
+created_at: 2026-05-29
+verified_at: 2026-05-29
+archived: true
+handoff_context: openspec/changes/session-kanban/.comet/handoff/design-context.json
+handoff_hash: 705452a9e6f66b257ae10d82392dff3280c3d00925c57a8f58d68a598df32117
+direct_override: true
+build_command: node -e "const fs=require('fs'); const html=fs.readFileSync('index.html','utf8'); const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n'); new Function(scripts); console.log('JS syntax OK');"
+verify_command: node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('/Users/laiyouxu/IdeaProjects/Yuxi-Know/session.json','utf8')); let todos=0; for (const m of s.messages||[]) for (const p of m.parts||[]) if (p.type==='tool' && p.tool==='todowrite') todos=Math.max(todos, ((p.state&&p.state.input&&p.state.input.todos)||[]).length); if (!todos) throw new Error('no todos found'); console.log('Reference session todos:', todos);"

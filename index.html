@@ -970,6 +970,15 @@
         const isLastTurn = idx === card.turns.length - 1;
         finalizeTurn(turn, card, isLastTurn);
       });
+
+      // NOTE: 过滤掉没有任何可见内容（无文本、无工具/技能/子代理执行、无制品且无用户输入）的幽灵 Turn
+      card.turns = card.turns.filter((turn) => {
+        const hasText = turn.aiTexts.some((t) => partText(t.part) && partText(t.part).trim().length > 0);
+        const hasTools = turn.tools.length > 0 || turn.skills.length > 0 || turn.subagents.length > 0;
+        const hasArtifacts = turn.artifacts && turn.artifacts.length > 0;
+        const hasUser = turn.userMessages.length > 0;
+        return hasText || hasTools || hasArtifacts || hasUser;
+      });
     }
 
     /**

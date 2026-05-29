@@ -1,0 +1,14 @@
+workflow: hotfix
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: full
+base_ref: fb8f85e40ca4f399a437f99143c65567ec5204d2
+design_doc: null
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-05-30-ghost-turn-cleanup-verify.md
+branch_status: handled
+created_at: 2026-05-30
+verified_at: 2026-05-30
+archived: true

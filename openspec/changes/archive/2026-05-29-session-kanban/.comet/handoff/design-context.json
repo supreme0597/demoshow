@@ -1,0 +1,13 @@
+{
+  "change": "session-kanban",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "705452a9e6f66b257ae10d82392dff3280c3d00925c57a8f58d68a598df32117",
+  "files": [
+    { "path": "openspec/changes/session-kanban/proposal.md", "sha256": "9998db11883429033dc5cf7ea6cc0d7bffc57c1e9eb31b12cb33a7a6b381dd5d" },
+    { "path": "openspec/changes/session-kanban/design.md", "sha256": "f0306e55bebcd36c2518d91f83c0e9ae83c1da2a6d0d9868b2d7ed0116f678bd" },
+    { "path": "openspec/changes/session-kanban/tasks.md", "sha256": "abe62ace98e1fc4ee54cdc54fddc204cbb92afc6a699cc93a399bbdef253e8ce" }
+  ]
+}
