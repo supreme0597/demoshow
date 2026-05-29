@@ -168,8 +168,6 @@
     .card-title { display: flex; align-items: center; min-width: 0; gap: 7px; font-size: 13px; font-weight: 700; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .system-logos { display: flex; gap: 4px; flex-shrink: 0; margin-left: 2px; }
-    .system-logo-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px dashed var(--border); border-radius: 4px; opacity: 0.45; }
     .status-badge { border-radius: 999px; padding: 2px 8px; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; }
     .status-badge.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
     .card-progress { height: 4px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
@@ -214,7 +212,6 @@
     .inline-message { margin: 2px 0; }
     .empty { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: 12px; text-align: center; }
     .link-button { color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px; white-space: nowrap; }
-    .text-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   </style>
 </head>
 <body>
@@ -526,11 +523,12 @@
     function groupMessagesToCards(timeline, todos) {
       if (!todos.length) return fallbackCards(timeline);
       const cards = todos.map((todo, index) => createCard(todo, index));
-      let currentCard = null;
+      let currentCard = cards[0];
       let currentTurn = null;
       let pendingUserEvents = [];
 
-      for (const event of timeline) {
+      for (let i = 0; i < timeline.length; i++) {
+        const event = timeline[i];
         if (event.type === 'text' && event.role === 'user') {
           pendingUserEvents.push(event);
           continue;
@@ -551,12 +549,17 @@
         currentTurn = ensureTurn(matchedCard, pendingUserEvents, currentTurn);
         pendingUserEvents = [];
 
-        if (event.type === 'text' && event.role === 'assistant') currentTurn.aiTexts.push(event);
+        if (event.type === 'text' && event.role === 'assistant') {
+          currentTurn.aiTexts.push(event);
+          currentTurn.lastEventIndexOfText = i;
+        }
         else if (event.type === 'reasoning') currentTurn.reasoning.push(event);
         else if (event.type === 'tool') {
           assignToolToTurn(event, currentTurn);
+          currentTurn.lastEventIndexOfNonText = i;
         } else if (event.type === 'patch' || event.type === 'diffs') {
           distributeArtifactEvent(event, cards, matchedCard, currentTurn);
+          currentTurn.lastEventIndexOfNonText = i;
         }
       }
       if (pendingUserEvents.length) attachPendingUsers(cards[0], pendingUserEvents);
@@ -637,12 +640,10 @@
     }
 
     function pickAssignableCard(event, cards, currentCard) {
-      if (event.type === 'tool') {
-        const match = matchEventToCard(event, cards);
-        if (match && match.todo.status !== 'pending') return match;
-      }
+      const match = matchEventToCard(event, cards);
+      if (match && match.todo.status !== 'pending') return match;
       if (currentCard && currentCard.todo.status !== 'pending') return currentCard;
-      return null;
+      return cards.find((card) => card.todo.status === 'in_progress') || cards.find((card) => card.todo.status === 'completed') || null;
     }
 
     function matchToolArtifactToCard(event, cards) {
@@ -715,40 +716,6 @@
       return score;
     }
 
-    const SYSTEM_LOGOS = [
-      { name: 'idesigner', color: '#6366f1' },
-      { name: 'cloudm', color: '#0ea5e9' },
-      { name: 'codehub', color: '#22c55e' },
-      { name: 'yunlong', color: '#f59e0b' },
-    ];
-
-    const TASK_SYSTEM_RULES = [
-      { keywords: ['proposal', 'requirement', '需求'], systems: ['idesigner'] },
-      { keywords: ['design', 'architecture', 'approach', '方案', '架构'], systems: ['idesigner', 'cloudm'] },
-      { keywords: ['code', 'coding', 'implement', '编码', '实现'], systems: ['codehub'] },
-      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '检查'], systems: ['yunlong'] },
-      { keywords: ['push', 'deploy', 'release', 'publish', 'repo', '仓库', '上库'], systems: ['codehub'] },
-      { keywords: ['spec', 'specs', 'document'], systems: [] },
-    ];
-
-    function getSystemLogos(content) {
-      const text = (content || '').toLowerCase();
-      const matched = new Set();
-      for (const rule of TASK_SYSTEM_RULES) {
-        if (rule.keywords.some((k) => text.includes(k))) {
-          for (const sys of rule.systems) matched.add(sys);
-        }
-      }
-      return SYSTEM_LOGOS.filter((s) => matched.has(s.name));
-    }
-
-    function renderSystemLogos(content) {
-      const logos = getSystemLogos(content);
-      if (!logos.length) return '';
-      const chips = logos.map((s) => `<span class="system-logo-placeholder" title="${escapeHtml(s.name)}"></span>`).join('');
-      return `<span class="system-logos">${chips}</span>`;
-    }
-
     function createCard(todo, index) {
       const { title, goal } = splitTaskName(todo.content);
       return { todo, index, turns: [], rawArtifacts: [], artifacts: [], taskTitle: title, taskGoal: goal };
@@ -761,7 +728,7 @@
     }
 
     function createTurn(kind = 'user') {
-      return { id: 'turn-' + Math.random().toString(36).slice(2), kind, userMessages: [], aiTexts: [], reasoning: [], tools: [], skills: [], subagents: [], rawArtifacts: [], artifacts: [], finalText: '', processTexts: [] };
+      return { id: 'turn-' + Math.random().toString(36).slice(2), kind, userMessages: [], aiTexts: [], reasoning: [], tools: [], skills: [], subagents: [], rawArtifacts: [], artifacts: [], finalText: '', processTexts: [], lastEventIndexOfText: -1, lastEventIndexOfNonText: -1 };
     }
 
     function attachPendingUsers(card, users) {
@@ -796,10 +763,13 @@
         return;
       }
       card.artifacts = extractArtifacts(card);
-      for (const turn of card.turns) finalizeTurn(turn, card);
+      card.turns.forEach((turn, idx) => {
+        const isLastTurn = idx === card.turns.length - 1;
+        finalizeTurn(turn, card, isLastTurn);
+      });
     }
 
-    function finalizeTurn(turn, card) {
+    function finalizeTurn(turn, card, isLastTurn = true) {
       turn.artifacts = extractArtifacts({ rawArtifacts: turn.rawArtifacts, tools: [...turn.tools, ...turn.skills], subagents: turn.subagents });
       for (const cardArt of card.artifacts || []) {
         if (!cardArt.patch) continue;
@@ -812,8 +782,14 @@
         }
       }
       const texts = turn.aiTexts.map((event) => partText(event.part)).filter(Boolean);
-      turn.finalText = texts[texts.length - 1] || inferOutcomeFromTurn(turn, card);
-      turn.processTexts = texts.slice(0, -1);
+      const hasSubsequentAction = turn.lastEventIndexOfNonText > turn.lastEventIndexOfText;
+      if (hasSubsequentAction && texts.length > 0) {
+        turn.finalText = inferOutcomeFromTurn(turn, card, isLastTurn);
+        turn.processTexts = texts;
+      } else {
+        turn.finalText = texts[texts.length - 1] || inferOutcomeFromTurn(turn, card, isLastTurn);
+        turn.processTexts = texts.slice(0, -1);
+      }
     }
 
     function inferOutcomeFromCard(card) {
@@ -822,12 +798,13 @@
       return statusPlaceholder(card.todo.status);
     }
 
-    function inferOutcomeFromTurn(turn, card) {
+    function inferOutcomeFromTurn(turn, card, isLastTurn = true) {
       const artifactNames = turn.artifacts.map((artifact) => shortPath(artifact.file));
       const toolNames = [...turn.tools, ...turn.skills, ...turn.subagents].map((event) => event.part?.tool).filter(Boolean);
-      if (artifactNames.length) return `${statusVerb(card.todo.status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
-      if (toolNames.length) return `${statusVerb(card.todo.status)}，执行了 ${toolNames.length} 次相关操作：${toolNames.slice(0, 5).join('、')}。`;
-      return statusPlaceholder(card.todo.status);
+      const status = isLastTurn ? card.todo.status : 'in_progress';
+      if (artifactNames.length) return `${statusVerb(status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
+      if (toolNames.length) return `${statusVerb(status)}，执行了 ${toolNames.length} 次相关操作：${toolNames.slice(0, 5).join('、')}。`;
+      return statusPlaceholder(status);
     }
 
     function statusVerb(status) {
@@ -1052,24 +1029,25 @@
         <article class="task-card ${escapeHtml(card.todo.status || 'pending')}">
           <header class="card-header">
             <div class="card-title-row">
-              <div class="card-title"><span class="status-dot" style="background:${state.color}"></span><span class="title-text">${escapeHtml(card.taskTitle || card.todo.content || 'Untitled TODO')}</span>${renderSystemLogos(card.todo.content)}</div>
+              <div class="card-title"><span class="status-dot" style="background:${state.color}"></span><span class="title-text">${escapeHtml(card.taskTitle || card.todo.content || 'Untitled TODO')}</span></div>
               <span class="status-badge ${card.todo.status === 'pending' ? 'pending' : ''}" style="background:${card.todo.status === 'pending' ? '' : state.color}">${state.label}</span>
             </div>
             <div class="card-progress"><div class="progress-fill" style="width:${state.percent}%;background:${state.color}"></div></div>
           </header>
           <div class="card-body">
-            ${card.turns.length ? card.turns.map((turn, index) => renderTurn(card, turn, index)).join('') : renderEmptyTurn(card)}
+            ${card.turns.length ? card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('') : renderEmptyTurn(card)}
           </div>
         </article>`;
     }
 
-    function renderTurn(card, turn, index) {
+    function renderTurn(card, turn, index, totalTurns) {
       const goalHtml = index === 0 && card.taskGoal ? `<div class="message-row user"><div class="bubble user-bubble"><span class="bubble-label">🎯 任务目标</span>${renderLongText(card.taskGoal)}</div><div class="avatar user-avatar">G</div></div>` : '';
+      const isLastTurn = index === totalTurns - 1;
       return `<section class="turn-block">
         <div class="artifact-title">Turn ${index + 1}</div>
         ${goalHtml}
         ${turn.userMessages.length ? turn.userMessages.map((event) => renderUserBubble(partText(event.part))).join('') : ''}
-        ${renderTurnFinalBubble(card, turn)}
+        ${renderTurnFinalBubble(card, turn, isLastTurn)}
         ${renderTurnProcess(turn)}
         ${renderTurnTraceability(turn)}
       </section>`;
@@ -1092,10 +1070,11 @@
       return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(card.finalText)}${renderArtifacts(card.artifacts)}</div></div>`;
     }
 
-    function renderTurnFinalBubble(card, turn) {
-      const label = card.todo.status === 'completed' ? '📋 最终成果' : card.todo.status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
-      const className = card.todo.status === 'in_progress' ? 'progress' : 'result';
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderClampedText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}</div></div>`;
+    function renderTurnFinalBubble(card, turn, isLastTurn) {
+      const status = isLastTurn ? card.todo.status : 'in_progress';
+      const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
+      const className = status === 'in_progress' ? 'progress' : 'result';
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
@@ -1272,21 +1251,6 @@
       const el = document.getElementById(id);
       const expanded = trigger.textContent === '[折叠]';
       el.textContent = expanded ? el.dataset.short : el.dataset.full;
-      trigger.textContent = expanded ? '[展开]' : '[折叠]';
-    }
-
-    function renderClampedText(text, maxLines = 2) {
-      if (!text) return '';
-      const safe = escapeHtml(text);
-      if (text.length <= 160) return `<span class="text-clamp-${maxLines}">${safe}</span>`;
-      const id = 'clamp-' + Math.random().toString(36).slice(2);
-      return `<span id="${id}" class="text-clamp-${maxLines}" data-full="${escapeAttr(text)}">${safe}</span> <span class="link-button" onclick="toggleClamp('${id}', this)">[展开]</span>`;
-    }
-
-    function toggleClamp(id, trigger) {
-      const el = document.getElementById(id);
-      const expanded = trigger.textContent === '[折叠]';
-      el.className = expanded ? `text-clamp-2` : '';
       trigger.textContent = expanded ? '[展开]' : '[折叠]';
     }
 
