@@ -168,6 +168,8 @@
     .card-title { display: flex; align-items: center; min-width: 0; gap: 7px; font-size: 13px; font-weight: 700; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .system-logos { display: flex; gap: 4px; flex-shrink: 0; margin-left: 2px; }
+    .system-logo { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
     .status-badge { border-radius: 999px; padding: 2px 8px; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; }
     .status-badge.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
     .card-progress { height: 4px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
@@ -713,6 +715,39 @@
       return score;
     }
 
+    const SYSTEM_LOGOS = [
+      { name: 'idesigner', label: 'ID', color: '#6366f1' },
+      { name: 'cloudm', label: 'CM', color: '#0ea5e9' },
+      { name: 'codehub', label: 'CH', color: '#22c55e' },
+      { name: 'yunlong', label: 'YL', color: '#f59e0b' },
+    ];
+
+    const TASK_SYSTEM_RULES = [
+      { keywords: ['proposal', 'requirement', '需求'], systems: ['idesigner'] },
+      { keywords: ['design', 'architecture', 'approach', '方案'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['code', 'coding', 'implement', '编码'], systems: ['codehub'] },
+      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '编译验证'], systems: ['yunlong'] },
+      { keywords: ['push', 'deploy', 'release', 'publish', 'repo', '仓库', '上库'], systems: ['codehub'] },
+    ];
+
+    function getSystemLogos(content) {
+      const text = (content || '').toLowerCase();
+      const matched = new Set();
+      for (const rule of TASK_SYSTEM_RULES) {
+        if (rule.keywords.some((k) => text.includes(k))) {
+          for (const sys of rule.systems) matched.add(sys);
+        }
+      }
+      return SYSTEM_LOGOS.filter((s) => matched.has(s.name));
+    }
+
+    function renderSystemLogos(content) {
+      const logos = getSystemLogos(content);
+      if (!logos.length) return '';
+      const chips = logos.map((s) => `<span class="system-logo" style="background:${s.color}">${escapeHtml(s.label)}</span>`).join('');
+      return `<span class="system-logos">${chips}</span>`;
+    }
+
     function createCard(todo, index) {
       const { title, goal } = splitTaskName(todo.content);
       return { todo, index, turns: [], rawArtifacts: [], artifacts: [], taskTitle: title, taskGoal: goal };
@@ -1016,7 +1051,7 @@
         <article class="task-card ${escapeHtml(card.todo.status || 'pending')}">
           <header class="card-header">
             <div class="card-title-row">
-              <div class="card-title"><span class="status-dot" style="background:${state.color}"></span><span class="title-text">${escapeHtml(card.taskTitle || card.todo.content || 'Untitled TODO')}</span></div>
+              <div class="card-title"><span class="status-dot" style="background:${state.color}"></span><span class="title-text">${escapeHtml(card.taskTitle || card.todo.content || 'Untitled TODO')}</span>${renderSystemLogos(card.todo.content)}</div>
               <span class="status-badge ${card.todo.status === 'pending' ? 'pending' : ''}" style="background:${card.todo.status === 'pending' ? '' : state.color}">${state.label}</span>
             </div>
             <div class="card-progress"><div class="progress-fill" style="width:${state.percent}%;background:${state.color}"></div></div>
