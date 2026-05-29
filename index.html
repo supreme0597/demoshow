@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Session Kanban</title>
+  <style>
+    :root {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e5e5e7;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #68686d;
+      --text-tertiary: #9a9aa0;
+      --accent: #0071e3;
+      --success: #22c55e;
+      --warning: #ff9f0a;
+      --error: #ff3b30;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1d1d1f;
+        --bg-secondary: #2d2d2f;
+        --bg-tertiary: #3d3d3f;
+        --border: #424245;
+        --text-primary: #f5f5f7;
+        --text-secondary: #b7b7bd;
+        --text-tertiary: #77777d;
+        --shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    .hidden { display: none !important; }
+    .drop-zone {
+      min-height: calc(100vh - 32px);
+      margin: 16px;
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-secondary);
+      transition: 0.18s ease;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      transform: scale(0.995);
+    }
+    .drop-zone h1 { margin: 0 0 8px; color: var(--text-primary); font-size: 32px; }
+    .drop-zone p { margin: 0; }
+    .drop-error { color: var(--error); margin-top: 14px; font-size: 14px; max-width: 560px; }
+
+    .app { height: 100%; display: flex; flex-direction: column; }
+    .info-bar {
+      margin: 16px 16px 12px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+    .info-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+    .info-title { font-weight: 750; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .info-meta { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+    .info-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .action-button { border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); border-radius: 7px; padding: 5px 9px; cursor: pointer; font-size: 12px; }
+    .action-button:hover { border-color: var(--accent); color: var(--accent); }
+    .action-button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .global-progress { display: flex; align-items: center; gap: 10px; }
+    .progress-track { height: 6px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; flex: 1; }
+    .progress-fill { height: 100%; border-radius: 999px; transition: width 0.25s ease; }
+    .global-progress .progress-fill { background: linear-gradient(90deg, #f97316, var(--success)); }
+    .progress-label { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+
+    .view-container { flex: 1; min-height: 0; }
+    .view-container.hidden { display: none; }
+
+    /* Phase Timeline */
+    .phase-timeline { height: 100%; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .session-summary {
+      background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 16px; display: flex; gap: 24px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .summary-item { display: flex; flex-direction: column; gap: 2px; }
+    .summary-label { font-size: 9px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+    .summary-value { font-size: 22px; font-weight: 750; color: var(--text-primary); }
+    .summary-sub { font-size: 11px; color: var(--text-secondary); }
+
+    .phase-card {
+      background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .phase-card.dimmed { opacity: 0.65; }
+    .phase-header {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
+    }
+    .phase-header:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+    .phase-indicator { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
+    .phase-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .phase-title-row { display: flex; align-items: center; gap: 8px; }
+    .phase-title { font-size: 13px; font-weight: 650; }
+    .conf-badge { font-size: 9px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
+    .conf-high { background: #d1fae5; color: #065f46; }
+    .conf-medium { background: #fef3c7; color: #92400e; }
+    .conf-low { background: #f3f4f6; color: #6b7280; }
+    .phase-bar-row { display: flex; align-items: center; gap: 8px; }
+    .phase-bar { flex: 1; height: 6px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
+    .phase-fill { height: 100%; border-radius: 999px; }
+    .phase-meta { color: var(--text-secondary); font-size: 10px; white-space: nowrap; display: flex; gap: 10px; }
+    .phase-chevron { color: var(--text-tertiary); font-size: 10px; transition: transform .15s ease; }
+    .phase-card.open .phase-chevron { transform: rotate(90deg); }
+
+    .phase-steps { padding: 0 12px 10px 12px; display: none; flex-direction: column; gap: 5px; }
+    .phase-card.open .phase-steps { display: flex; }
+    .phase-step { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+    .step-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .step-header:hover { color: var(--accent); }
+    .step-title { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+    .step-right { display: flex; align-items: center; gap: 6px; }
+    .step-dur { color: var(--text-tertiary); font-size: 10px; }
+    .step-reason-badge { font-size: 8px; padding: 1px 4px; border-radius: 3px; background: var(--bg-tertiary); color: var(--text-tertiary); }
+    .step-detail { display: none; margin-top: 6px; }
+    .phase-step.open .step-detail { display: block; }
+    .step-tools { display: flex; gap: 3px; flex-wrap: wrap; }
+    .step-tool { background: var(--bg-tertiary); border-radius: 3px; padding: 1px 5px; font-size: 9px; color: var(--text-secondary); }
+    .step-reasoning { margin-top: 4px; border-left: 2px solid var(--border); padding-left: 6px; color: var(--text-tertiary); font-size: 9px; line-height: 1.5; max-height: 100px; overflow-y: auto; }
+    .step-texts { margin-top: 4px; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
+    .step-artifacts { margin-top: 4px; display: flex; gap: 3px; flex-wrap: wrap; }
+    .step-artifact { font-size: 9px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--text-secondary); }
+    .step-tokens { margin-top: 3px; font-size: 8px; color: var(--text-tertiary); }
+
+    /* Board */
+    .board { flex: 1; min-height: 0; }
+    .card-row { height: 100%; display: flex; gap: 12px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+    .task-card {
+      min-width: 390px;
+      max-width: 430px;
+      height: 100%;
+      flex: 0 0 410px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .task-card.completed { border-color: color-mix(in srgb, var(--success) 70%, var(--border)); }
+    .task-card.in_progress { border-color: color-mix(in srgb, var(--warning) 70%, var(--border)); }
+    .task-card.pending { opacity: 0.58; }
+    .card-header { padding: 11px 14px 9px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .card-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+    .card-title { display: flex; align-items: center; min-width: 0; gap: 7px; font-size: 13px; font-weight: 700; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status-badge { border-radius: 999px; padding: 2px 8px; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .status-badge.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
+    .card-progress { height: 4px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
+    .card-body { padding: 10px 14px 14px; overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+    .turn-block { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .turn-block:last-child { border-bottom: 0; padding-bottom: 0; }
+
+    .message-row { display: flex; gap: 7px; align-items: flex-start; }
+    .message-row.user { justify-content: flex-end; }
+    .avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 800; color: #fff; }
+    .user-avatar { background: var(--accent); }
+    .ai-avatar { background: #34c759; }
+    .bubble { max-width: 85%; padding: 8px 10px; border-radius: 11px; font-size: 12px; line-height: 1.48; }
+    .user-bubble { background: #e8f4fd; color: #1d1d1f; border-radius: 11px 11px 3px 11px; }
+    .ai-bubble { background: var(--bg-primary); color: var(--text-primary); border-radius: 11px 11px 11px 3px; }
+    .ai-bubble.result { border-left: 2px solid var(--success); }
+    .ai-bubble.progress { border-left: 2px solid var(--warning); }
+    .bubble-label { display: block; margin-bottom: 3px; font-size: 10px; font-weight: 800; color: var(--text-secondary); }
+    .user-bubble .bubble-label { color: var(--accent); }
+    .result .bubble-label { color: var(--success); }
+    .progress .bubble-label { color: var(--warning); }
+
+    .artifact-block { margin-top: 7px; }
+    .artifact-title { font-size: 10px; color: var(--text-tertiary); font-weight: 700; margin-bottom: 4px; }
+    .artifact-list { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; }
+    .artifact-chip { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; font-size: 10px; color: var(--text-secondary); }
+    .artifact-button { cursor: pointer; }
+    .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
+    .artifact-diff { flex-basis: 100%; width: 100%; }
+    .artifact-diff.hidden { display: none; }
+    .trace { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; }
+    .trace > summary { padding: 7px 9px; cursor: pointer; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+    .trace-content { padding: 0 9px 9px; display: flex; flex-direction: column; gap: 6px; }
+    details.nested summary { cursor: pointer; color: var(--text-secondary); font-size: 10px; }
+    .nested-content { padding: 5px 0 0 10px; color: var(--text-tertiary); font-size: 10px; line-height: 1.55; }
+    .skill-box { margin: 4px 0; padding: 7px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 7px; }
+    .skill-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-primary); font-size: 10px; font-weight: 700; }
+    .skill-meta { margin-top: 4px; color: var(--text-secondary); font-size: 10px; line-height: 1.55; word-break: break-all; }
+    .skill-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
+    .skill-link:hover { text-decoration: underline; }
+    pre.diff { margin: 5px 0 0; padding: 7px; max-height: 180px; overflow: auto; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-size: 10px; line-height: 1.35; }
+    .inline-message { margin: 2px 0; }
+    .empty { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: 12px; text-align: center; }
+    .link-button { color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px; white-space: nowrap; }
+    .text-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <main id="drop-zone" class="drop-zone">
+    <div>
+      <h1>Session Kanban</h1>
+      <p>拖入 opencode 导出的 session.json</p>
+      <div id="drop-error" class="drop-error"></div>
+    </div>
+  </main>
+
+  <main id="app" class="app hidden">
+    <section id="info-bar"></section>
+    <section id="phase-view" class="view-container phase-timeline"></section>
+    <section id="task-view" class="view-container board hidden"></section>
+  </main>
+  <input id="file-input" class="hidden" type="file" accept="application/json,.json">
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const dropError = document.getElementById('drop-error');
+    const app = document.getElementById('app');
+    const infoBar = document.getElementById('info-bar');
+    const phaseView = document.getElementById('phase-view');
+    const taskView = document.getElementById('task-view');
+    const fileInput = document.getElementById('file-input');
+    const STORAGE_KEY = 'session-kanban:last-json';
+    const STORAGE_NAME_KEY = 'session-kanban:last-name';
+    let currentView = 'task';
+    let viewModelCache = null;
+
+    dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+
+    dropZone.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+      await loadSessionFile(file);
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (file) await loadSessionFile(file);
+      fileInput.value = '';
+    });
+
+    document.addEventListener('DOMContentLoaded', restoreCachedSession);
+
+    /* ========== Session Loading ========== */
+
+    async function loadSessionFile(file) {
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (!Array.isArray(json.messages)) throw new Error('缺少 messages 数组');
+        cacheSession(text, file.name);
+        const viewModel = parseSession(json);
+        renderApp(viewModel);
+      } catch (error) {
+        dropError.textContent = '无法解析 session.json：' + error.message;
+      }
+    }
+
+    function restoreCachedSession() {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (!cached) return;
+      try {
+        const json = JSON.parse(cached);
+        if (!Array.isArray(json.messages)) return;
+        renderApp(parseSession(json));
+      } catch (error) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_NAME_KEY);
+      }
+    }
+
+    function cacheSession(text, name) {
+      try {
+        localStorage.setItem(STORAGE_KEY, text);
+        localStorage.setItem(STORAGE_NAME_KEY, name || 'session.json');
+      } catch (error) {
+        console.warn('Unable to cache session.json:', error);
+      }
+    }
+
+    function clearCachedSession() {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_NAME_KEY);
+      app.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+      dropError.textContent = '';
+    }
+
+    /* ========== Parse Session ========== */
+
+    function parseSession(session) {
+      const messages = session.messages || [];
+      const timeline = buildTimeline(messages);
+      const todos = extractTodos(timeline);
+      const cards = groupMessagesToCards(timeline, todos);
+      attachGlobalDiffs(cards, collectGlobalDiffs(messages));
+      for (const card of cards) finalizeCard(card);
+
+      const steps = extractSteps(messages);
+      const phases = aggregatePhases(steps);
+      attachPhaseTodos(phases, todos, steps);
+
+      return { session, todos, cards, steps, phases };
+    }
+
+    /* ========== Step Extraction (uses step-start/step-finish) ========== */
+
+    function extractSteps(messages) {
+      const steps = [];
+      for (let mi = 0; mi < messages.length; mi++) {
+        const msg = messages[mi];
+        const info = msg.info || {};
+        if (info.role !== 'assistant') continue;
+
+        const parts = msg.parts || [];
+        let stepStart = null, stepFinish = null;
+        for (const part of parts) {
+          if (part.type === 'step-start') stepStart = part;
+          if (part.type === 'step-finish') stepFinish = part;
+        }
+        if (!stepStart && !stepFinish) continue;
+
+        const startedAt = stepStart?.time?.start || info.time?.created || 0;
+        const endedAt = stepFinish?.time?.end || info.time?.completed || startedAt;
+
+        const step = {
+          index: steps.length,
+          messageIndex: mi,
+          startedAt,
+          endedAt,
+          duration: endedAt - startedAt,
+          finishReason: stepFinish?.reason || info.finish || '',
+          tokens: stepFinish?.tokens || info.tokens || {},
+          cost: stepFinish?.cost || info.cost || 0,
+          tools: [],
+          skills: [],
+          subagents: [],
+          reasoning: [],
+          texts: [],
+          artifacts: [],
+          rawPart: stepStart,
+          finishPart: stepFinish,
+        };
+
+        for (const part of parts) {
+          if (part.type === 'tool') {
+            if (part.tool === 'skill') step.skills.push(part);
+            else if (part.tool === 'task') step.subagents.push(part);
+            else step.tools.push(part);
+          } else if (part.type === 'reasoning') {
+            step.reasoning.push(part);
+          } else if (part.type === 'text') {
+            step.texts.push(part);
+          } else if (part.type === 'patch') {
+            for (const file of part.files || []) step.artifacts.push({ file, status: 'modified', kind: 'patch' });
+          }
+        }
+
+        for (const diff of info.summary?.diffs || []) {
+          step.artifacts.push({ file: diff.file, status: diff.status, kind: 'diff', additions: diff.additions, deletions: diff.deletions });
+        }
+
+        steps.push(step);
+      }
+      return steps;
+    }
+
+    /* ========== Phase Classification ========== */
+
+    function classifyStep(step) {
+      const titles = step.tools.map((t) => t.state?.title || '');
+      const skillNames = step.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || '');
+      const subTitles = step.subagents.map((t) => t.state?.title || '');
+      const allFiles = step.artifacts.map((a) => a.file || '');
+      const all = [...titles, ...skillNames, ...subTitles, ...allFiles].join(' ').toLowerCase();
+
+      if (all.includes('explore project')) return { phase: '项目调研与架构分析', confidence: 'high' };
+      if (all.includes('proposal.md') || all.includes('design.md') || all.includes('tasks.md'))
+        return { phase: '核心文档与方案产出', confidence: 'high' };
+      if (all.includes('todowrite') || all.includes('todos')) return { phase: '任务规划与状态管理', confidence: 'high' };
+
+      const hasSkill = (name) => skillNames.some((n) => n.toLowerCase() === name);
+      if (hasSkill('comet') && !hasSkill('comet-open') && !hasSkill('comet-design')) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (hasSkill('comet-open')) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (hasSkill('comet-design')) return { phase: '变更状态与阶段流转', confidence: 'high' };
+      if (hasSkill('brainstorming')) return { phase: '设计确认与交付准备', confidence: 'high' };
+
+      if (titles.some((t) => t.toLowerCase().includes('check for active') || t.toLowerCase().includes('preset') || t.toLowerCase().includes('check openspec'))) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (titles.some((t) => (t.toLowerCase().includes('create') && t.toLowerCase().includes('directory')) || t.toLowerCase().includes('mkdir') || t.toLowerCase().includes('comet environment'))) return { phase: '环境准备与目录创建', confidence: 'high' };
+      if (titles.some((t) => t.toLowerCase().includes('initialize comet') || t.toLowerCase().includes('comet state') || t.toLowerCase().includes('guard') || t.toLowerCase().includes('entry check') || t.toLowerCase().includes('handoff'))) return { phase: '变更状态与阶段流转', confidence: 'high' };
+
+      if (!step.tools.length && !step.skills.length && !step.subagents.length && step.texts.length)
+        return { phase: 'AI 回复与总结', confidence: 'medium' };
+      if (step.subagents.length) return { phase: '子任务执行', confidence: 'medium' };
+      if (step.skills.length) return { phase: '技能加载', confidence: 'medium' };
+      if (step.artifacts.length) return { phase: '文件变更', confidence: 'medium' };
+      return { phase: '执行步骤', confidence: 'low' };
+    }
+
+    /* ========== Phase Aggregation ========== */
+
+    function aggregatePhases(steps) {
+      if (!steps.length) return [];
+      const phases = [];
+      let current = null;
+
+      for (const step of steps) {
+        const { phase: title, confidence } = classifyStep(step);
+
+        if (!current || current.title !== title) {
+          current = {
+            title,
+            confidence,
+            steps: [step],
+            startedAt: step.startedAt,
+            endedAt: step.endedAt,
+            artifacts: [],
+            toolCount: 0,
+            skillCount: 0,
+            subagentCount: 0,
+          };
+          phases.push(current);
+        } else {
+          current.steps.push(step);
+          current.endedAt = step.endedAt;
+          if (confidence === 'high') current.confidence = 'high';
+        }
+
+        current.toolCount += step.tools.length;
+        current.skillCount += step.skills.length;
+        current.subagentCount += step.subagents.length;
+        current.artifacts.push(...step.artifacts);
+      }
+
+      for (const phase of phases) {
+        const seen = new Set();
+        phase.artifacts = phase.artifacts.filter((a) => {
+          const key = a.file;
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      return phases;
+    }
+
+    function attachPhaseTodos(phases, todos, steps) {
+      for (const phase of phases) {
+        phase.todos = [];
+        const stepText = phase.steps.map((s) => {
+          return [...s.tools.map((t) => t.state?.title || ''), ...s.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || ''), ...s.subagents.map((t) => t.state?.title || '')].join(' ');
+        }).join(' ').toLowerCase();
+        const stepFiles = phase.artifacts.map((a) => (a.file || '').toLowerCase());
+
+        for (const todo of todos) {
+          const todoLower = todo.content.toLowerCase();
+          if (stepFiles.some((f) => todoLower.includes(f.split('/').pop()))) {
+            phase.todos.push(todo);
+            continue;
+          }
+          const todoWords = todoLower.split(/[^a-z0-9_.-]+/).filter((w) => w.length >= 4);
+          const matches = todoWords.filter((w) => stepText.includes(w));
+          if (matches.length >= 2) phase.todos.push(todo);
+        }
+      }
+    }
+
+    /* ========== Existing Parse Helpers ========== */
+
+    function buildTimeline(messages) {
+      const events = [];
+      for (const [messageIndex, message] of messages.entries()) {
+        const role = message.info?.role || 'unknown';
+        const time = message.info?.time?.created || message.info?.time?.completed || 0;
+        for (const [partIndex, part] of (message.parts || []).entries()) {
+          const eventTime = part.time?.start || part.time?.end || time;
+          events.push({ type: part.type, role, time: eventTime, message, messageIndex, partIndex, part });
+        }
+      }
+      return events.sort((a, b) => a.time - b.time);
+    }
+
+    function extractTodos(timeline) {
+      let snapshot = [];
+      for (const event of timeline) {
+        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
+          const todos = event.part.state?.input?.todos;
+          if (Array.isArray(todos) && todos.length) snapshot = todos.map((todo, index) => ({ ...todo, index }));
+        }
+      }
+      const order = { completed: 0, in_progress: 1, pending: 2 };
+      return snapshot.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index);
+    }
+
+    function groupMessagesToCards(timeline, todos) {
+      if (!todos.length) return fallbackCards(timeline);
+      const cards = todos.map((todo, index) => createCard(todo, index));
+      let currentCard = null;
+      let currentTurn = null;
+      let pendingUserEvents = [];
+
+      for (const event of timeline) {
+        if (event.type === 'text' && event.role === 'user') {
+          pendingUserEvents.push(event);
+          continue;
+        }
+
+        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
+          currentCard = pickActiveCard(event, cards) || currentCard;
+          currentTurn = ensureTurn(currentCard || cards[0], pendingUserEvents, currentTurn);
+          assignToolToTurn(event, currentTurn);
+          pendingUserEvents = [];
+          continue;
+        }
+
+        const matchedCard = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+        if (!matchedCard) continue;
+        if (matchedCard !== currentCard && !pendingUserEvents.length) currentTurn = null;
+        currentCard = matchedCard;
+        currentTurn = ensureTurn(matchedCard, pendingUserEvents, currentTurn);
+        pendingUserEvents = [];
+
+        if (event.type === 'text' && event.role === 'assistant') currentTurn.aiTexts.push(event);
+        else if (event.type === 'reasoning') currentTurn.reasoning.push(event);
+        else if (event.type === 'tool') {
+          assignToolToTurn(event, currentTurn);
+        } else if (event.type === 'patch' || event.type === 'diffs') {
+          distributeArtifactEvent(event, cards, matchedCard, currentTurn);
+        }
+      }
+      if (pendingUserEvents.length) attachPendingUsers(cards[0], pendingUserEvents);
+      return cards;
+    }
+
+    function collectGlobalDiffs(messages) {
+      const diffs = [];
+      for (const message of messages) {
+        for (const diff of message.info?.summary?.diffs || []) diffs.push(diff);
+      }
+      return diffs;
+    }
+
+    function attachGlobalDiffs(cards, diffs) {
+      for (const diff of diffs) {
+        const target = matchArtifactToCard({ file: diff.file }, cards);
+        if (target) target.rawArtifacts.push({ type: 'artifact', artifact: { file: diff.file, status: diff.status, additions: diff.additions, deletions: diff.deletions, patch: diff.patch } });
+      }
+    }
+
+    function distributeArtifactEvent(event, cards, fallbackCard, fallbackTurn) {
+      const artifacts = artifactsFromEvent(event);
+      if (!artifacts.length) {
+        if (fallbackTurn) fallbackTurn.rawArtifacts.push(event);
+        return;
+      }
+      for (const artifact of artifacts) {
+        const target = matchArtifactToCard(artifact, cards) || fallbackCard;
+        if (target) {
+          target.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
+          const turn = target === fallbackCard ? fallbackTurn : null;
+          if (turn) turn.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
+        }
+      }
+    }
+
+    function ensureTurn(card, pendingUsers, currentTurn) {
+      if (!card) return null;
+      if (pendingUsers.length) {
+        const turn = createTurn('user');
+        turn.userMessages.push(...pendingUsers);
+        card.turns.push(turn);
+        return turn;
+      }
+      if (currentTurn && card.turns.includes(currentTurn)) return currentTurn;
+      const turn = createTurn('system');
+      card.turns.push(turn);
+      return turn;
+    }
+
+    function assignToolToTurn(event, turn) {
+      if (!turn) return;
+      if (event.part?.tool === 'skill') turn.skills.push(event);
+      else if (event.part?.tool === 'task') turn.subagents.push(event);
+      else turn.tools.push(event);
+    }
+
+    function artifactsFromEvent(event) {
+      if (event.type === 'diffs') return (event.diffs || []).map((diff) => ({ file: diff.file, status: diff.status, additions: diff.additions, deletions: diff.deletions, patch: diff.patch }));
+      if (event.type === 'patch') return (event.part?.files || []).map((file) => ({ file, status: 'touched', patch: '', weak: true }));
+      return [];
+    }
+
+    function matchArtifactToCard(artifact, cards) {
+      const file = artifactKey(artifact.file).toLowerCase();
+      if (!file) return null;
+      let best = null;
+      let bestScore = 0;
+      for (const card of cards) {
+        const score = scoreTodoMatch(file, card.todo.content);
+        if (score > bestScore) {
+          best = card;
+          bestScore = score;
+        }
+      }
+      return bestScore >= 2 ? best : null;
+    }
+
+    function pickAssignableCard(event, cards, currentCard) {
+      if (event.type === 'tool') {
+        const match = matchEventToCard(event, cards);
+        if (match && match.todo.status !== 'pending') return match;
+      }
+      if (currentCard && currentCard.todo.status !== 'pending') return currentCard;
+      return null;
+    }
+
+    function matchToolArtifactToCard(event, cards) {
+      if (event.type !== 'tool') return null;
+      const file = event.part?.state?.input?.filePath || event.part?.state?.metadata?.filepath;
+      if (!file) return null;
+      return matchArtifactToCard({ file }, cards);
+    }
+
+    function pickActiveCard(event, cards) {
+      const active = (event.part?.state?.input?.todos || []).find((todo) => todo.status === 'in_progress');
+      if (!active) return null;
+      return cards.find((card) => card.todo.content === active.content) || null;
+    }
+
+    function matchEventToCard(event, cards) {
+      const haystack = eventSearchText(event);
+      if (!haystack) return null;
+      let best = null;
+      let bestScore = 0;
+      for (const card of cards) {
+        const score = scoreTodoMatch(haystack, card.todo.content);
+        if (score > bestScore) {
+          best = card;
+          bestScore = score;
+        }
+      }
+      return bestScore >= 2 ? best : null;
+    }
+
+    function eventSearchText(event) {
+      const part = event.part || {};
+      const state = part.state || {};
+      const bits = [
+        part.tool,
+        part.title,
+        state.title,
+        state.input?.description,
+        state.input?.command,
+        state.input?.filePath,
+        state.metadata?.filepath,
+        state.metadata?.description,
+        partText(part),
+        ...(event.diffs || []).map((diff) => diff.file),
+        ...(part.files || [])
+      ];
+      return bits.filter(Boolean).join(' ').toLowerCase();
+    }
+
+    function scoreTodoMatch(haystack, todoContent) {
+      const todo = String(todoContent || '').toLowerCase();
+      let score = 0;
+      const rules = [
+        ['directory structure', ['mkdir', 'directory structure']],
+        ['proposal.md', ['proposal.md', 'proposal']],
+        ['design.md', ['design.md', 'high-level architecture', 'design']],
+        ['tasks.md', ['tasks.md', 'todo list', 'tasks']],
+        ['.comet.yaml', ['.comet.yaml', 'comet state', 'initialize comet']],
+        ['guard', ['guard', 'transition', 'open -> design']],
+        ['design approaches', ['brainstorming', 'present design', 'approaches']],
+        ['design doc', ['design doc', 'docs/superpowers/specs']],
+        ['build phase', ['build phase', 'transition to build']]
+      ];
+      for (const [needle, terms] of rules) {
+        if (todo.includes(needle) && terms.some((term) => haystack.includes(term))) score += 4;
+      }
+      for (const token of todo.split(/[^a-z0-9_.-]+/).filter((token) => token.length >= 4)) {
+        if (haystack.includes(token)) score += 1;
+      }
+      return score;
+    }
+
+    function createCard(todo, index) {
+      const { title, goal } = splitTaskName(todo.content);
+      return { todo, index, turns: [], rawArtifacts: [], artifacts: [], taskTitle: title, taskGoal: goal };
+    }
+
+    function splitTaskName(content) {
+      const idx = (content || '').indexOf('：');
+      if (idx === -1) return { title: content || '', goal: '' };
+      return { title: content.slice(0, idx).trim(), goal: content.slice(idx + 1).trim() };
+    }
+
+    function createTurn(kind = 'user') {
+      return { id: 'turn-' + Math.random().toString(36).slice(2), kind, userMessages: [], aiTexts: [], reasoning: [], tools: [], skills: [], subagents: [], rawArtifacts: [], artifacts: [], finalText: '', processTexts: [] };
+    }
+
+    function attachPendingUsers(card, users) {
+      if (!card) return;
+      let turn = card.turns[card.turns.length - 1];
+      if (!turn || turn.userMessages.length || turn.aiTexts.length || turn.tools.length || turn.skills.length || turn.subagents.length) {
+        turn = createTurn('user');
+        card.turns.push(turn);
+      }
+      for (const event of users) turn.userMessages.push(event);
+    }
+
+    function fallbackCards(timeline) {
+      const card = createCard({ content: 'Session 回顾', status: 'completed', priority: 'medium' }, 0);
+      const turn = createTurn('user');
+      card.turns.push(turn);
+      for (const event of timeline) {
+        if (event.type === 'text' && event.role === 'user') turn.userMessages.push(event);
+        else if (event.type === 'text' && event.role === 'assistant') turn.aiTexts.push(event);
+        else if (event.type === 'reasoning') turn.reasoning.push(event);
+        else if (event.type === 'tool') assignToolToTurn(event, turn);
+        else if (event.type === 'patch' || event.type === 'diffs') turn.rawArtifacts.push(event);
+      }
+      finalizeCard(card);
+      return [card];
+    }
+
+    function finalizeCard(card) {
+      if (card.todo.status === 'pending') {
+        card.turns = [];
+        card.artifacts = [];
+        return;
+      }
+      card.artifacts = extractArtifacts(card);
+      for (const turn of card.turns) finalizeTurn(turn, card);
+    }
+
+    function finalizeTurn(turn, card) {
+      turn.artifacts = extractArtifacts({ rawArtifacts: turn.rawArtifacts, tools: [...turn.tools, ...turn.skills], subagents: turn.subagents });
+      for (const cardArt of card.artifacts || []) {
+        if (!cardArt.patch) continue;
+        const match = turn.artifacts.find((a) => artifactKey(a.file) === artifactKey(cardArt.file));
+        if (match && !match.patch) {
+          match.patch = cardArt.patch;
+          if (cardArt.additions !== undefined) match.additions = cardArt.additions;
+          if (cardArt.deletions !== undefined) match.deletions = cardArt.deletions;
+          if (cardArt.status !== 'touched') match.status = cardArt.status;
+        }
+      }
+      const texts = turn.aiTexts.map((event) => partText(event.part)).filter(Boolean);
+      turn.finalText = texts[texts.length - 1] || inferOutcomeFromTurn(turn, card);
+      turn.processTexts = texts.slice(0, -1);
+    }
+
+    function inferOutcomeFromCard(card) {
+      const artifactNames = card.artifacts.map((artifact) => shortPath(artifact.file));
+      if (artifactNames.length) return `${statusVerb(card.todo.status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
+      return statusPlaceholder(card.todo.status);
+    }
+
+    function inferOutcomeFromTurn(turn, card) {
+      const artifactNames = turn.artifacts.map((artifact) => shortPath(artifact.file));
+      const toolNames = [...turn.tools, ...turn.skills, ...turn.subagents].map((event) => event.part?.tool).filter(Boolean);
+      if (artifactNames.length) return `${statusVerb(card.todo.status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
+      if (toolNames.length) return `${statusVerb(card.todo.status)}，执行了 ${toolNames.length} 次相关操作：${toolNames.slice(0, 5).join('、')}。`;
+      return statusPlaceholder(card.todo.status);
+    }
+
+    function statusVerb(status) {
+      if (status === 'completed') return '任务已完成';
+      if (status === 'in_progress') return '任务进行中';
+      return '任务待处理';
+    }
+
+    function extractArtifacts(card) {
+      const artifacts = [];
+      for (const event of card.rawArtifacts) {
+        if (event.type === 'artifact') {
+          artifacts.push(event.artifact);
+          continue;
+        }
+        if (event.type === 'diffs') {
+          for (const diff of event.diffs || []) artifacts.push({ file: diff.file, status: diff.status, additions: diff.additions, deletions: diff.deletions, patch: diff.patch });
+        } else if (event.type === 'patch') {
+          for (const file of event.part?.files || []) artifacts.push({ file, status: 'modified', patch: '' });
+        }
+      }
+      for (const event of [...(card.tools || []), ...(card.skills || []), ...(card.subagents || [])]) {
+        const file = event.part?.state?.input?.filePath || event.part?.state?.metadata?.filepath;
+        if (file) artifacts.push({ file, status: event.part.tool === 'write' ? 'added' : 'modified', patch: '' });
+      }
+      const byKey = new Map();
+      for (const artifact of artifacts) {
+        if (!artifact.file) continue;
+        const key = artifactKey(artifact.file);
+        const existing = byKey.get(key);
+        if (!existing) {
+          byKey.set(key, artifact);
+        } else if ((existing.weak && !artifact.weak) || (!existing.patch && artifact.patch)) {
+          byKey.set(key, artifact);
+        }
+      }
+      return [...byKey.values()].filter((artifact) => !artifact.weak || artifact.patch);
+    }
+
+    /* ========== Rendering ========== */
+
+    function renderApp(viewModel) {
+      viewModelCache = viewModel;
+      dropZone.classList.add('hidden');
+      app.classList.remove('hidden');
+      const allTodos = viewModel.todos.length ? viewModel.todos : viewModel.cards.map((c) => c.todo);
+      renderInfoBar(viewModel.session, allTodos, viewModel);
+      renderPhaseView(viewModel);
+      renderBoard(viewModel.cards);
+      switchView(currentView);
+    }
+
+    function switchView(view) {
+      currentView = view;
+      phaseView.classList.toggle('hidden', view !== 'phase');
+      taskView.classList.toggle('hidden', view !== 'task');
+      const buttons = document.querySelectorAll('.view-btn');
+      buttons.forEach((btn) => btn.classList.toggle('active', btn.dataset.view === view));
+    }
+
+    function renderInfoBar(session, todos, viewModel) {
+      const info = session.info || {};
+      const done = todos.filter((todo) => todo.status === 'completed').length;
+      const total = todos.length || 1;
+      const created = info.time?.created || 0;
+      const updated = info.time?.updated || created;
+      const seconds = created && updated ? Math.max(0, Math.round((updated - created) / 1000)) : 0;
+      infoBar.innerHTML = `
+        <div class="info-bar">
+          <div class="info-row">
+            <div class="info-title">${escapeHtml(info.title || 'Untitled Session')}</div>
+            <div class="info-actions">
+              <div class="info-meta">${escapeHtml(info.model?.id || info.model?.modelID || 'unknown model')} · ${formatDuration(seconds)} · ${formatTokens(info.tokens)} · ${formatSummary(info.summary)}</div>
+              <button class="action-button" type="button" onclick="fileInput.click()">导入 JSON</button>
+              <button class="action-button" type="button" onclick="clearCachedSession()">清除</button>
+            </div>
+          </div>
+          <div class="global-progress">
+            <div class="progress-track"><div class="progress-fill" style="width:${Math.round(done / total * 100)}%"></div></div>
+            <div class="progress-label">总进度 ${done}/${total}</div>
+          </div>
+        </div>`;
+    }
+
+    /* ========== Phase Timeline Rendering ========== */
+
+    function renderPhaseView(viewModel) {
+      const phases = viewModel.phases || [];
+      if (!phases.length) {
+        phaseView.innerHTML = '<div class="empty">未检测到阶段信息</div>';
+        return;
+      }
+      phaseView.innerHTML = renderSessionSummary(viewModel) + phases.map((phase) => renderPhaseCard(phase, viewModel)).join('');
+    }
+
+    function renderSessionSummary(viewModel) {
+      const session = viewModel.session.info || {};
+      const created = session.time?.created || 0;
+      const updated = session.time?.updated || created;
+      const seconds = created && updated ? Math.max(0, Math.round((updated - created) / 1000)) : 0;
+      const phases = viewModel.phases || [];
+      const totalSteps = phases.reduce((sum, p) => sum + p.steps.length, 0);
+      const totalTools = phases.reduce((sum, p) => sum + p.toolCount + p.skillCount + p.subagentCount, 0);
+      const totalFiles = phases.reduce((sum, p) => sum + p.artifacts.length, 0);
+      const summary = session.summary || {};
+
+      return `<div class="session-summary">
+        <div class="summary-item">
+          <span class="summary-label">总耗时</span>
+          <span class="summary-value">${formatDuration(seconds)}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">阶段</span>
+          <span class="summary-value">${phases.length}</span>
+          <span class="summary-sub">${totalSteps} 个执行步骤</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">工具调用</span>
+          <span class="summary-value">${totalTools}</span>
+          <span class="summary-sub">含 Skill / SubAgent</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">文件变更</span>
+          <span class="summary-value">${totalFiles}</span>
+          <span class="summary-sub">+${summary.additions || 0}/-${summary.deletions || 0}</span>
+        </div>
+        ${session.model?.id ? `<div class="summary-item">
+          <span class="summary-label">模型</span>
+          <span class="summary-sub" style="font-size:13px;font-weight:600">${escapeHtml(session.model.id)}</span>
+        </div>` : ''}
+      </div>`;
+    }
+
+    function renderPhaseCard(phase, viewModel) {
+      const total = viewModel.session.info.time?.updated - viewModel.session.info.time?.created || 1;
+      const startPos = Math.max(0, ((phase.startedAt - viewModel.session.info.time.created) / total) * 100);
+      const width = Math.max(2, ((phase.endedAt - phase.startedAt) / total) * 100);
+      const totalArtifacts = phase.artifacts.length;
+      const totalTools = phase.toolCount + phase.skillCount + phase.subagentCount;
+      const confLabel = { high: '高', medium: '中', low: '低' }[phase.confidence] || '低';
+      const isAfterUserInput = phase.steps.some((s) => s.texts.some((t) => t.text?.length > 50));
+
+      const colorMap = {
+        '流程启动与意图识别': '#6366f1',
+        '项目调研与架构分析': '#3b82f6',
+        '任务规划与状态管理': '#f59e0b',
+        '环境准备与目录创建': '#8b5cf6',
+        '核心文档与方案产出': '#22c55e',
+        '变更状态与阶段流转': '#ec4899',
+        '设计确认与交付准备': '#14b8a6',
+      };
+      const color = colorMap[phase.title] || (phase.confidence === 'high' ? '#22c55e' : phase.confidence === 'medium' ? '#f59e0b' : '#9ca3af');
+
+      return `<div class="phase-card ${isAfterUserInput ? 'dimmed' : ''}">
+        <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="phase-indicator" style="background:${color}"></div>
+          <div class="phase-body">
+            <div class="phase-title-row">
+              <span class="phase-title">${escapeHtml(phase.title)}</span>
+              <span class="conf-badge conf-${phase.confidence}">${confLabel}可信</span>
+              <span class="phase-chevron">▶</span>
+            </div>
+            <div class="phase-bar-row">
+              <div class="phase-bar"><div class="phase-fill" style="width:${width}%;margin-left:${startPos}%;background:${color}"></div></div>
+              <div class="phase-meta">
+                <span>${formatDuration(Math.round((phase.endedAt - phase.startedAt) / 1000))}</span>
+                <span>${phase.steps.length} 步</span>
+                <span>${totalTools} 次调用</span>
+                ${totalArtifacts ? `<span>${totalArtifacts} 个文件</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="phase-steps">
+          ${phase.steps.map((step, i) => renderStep(step, i)).join('')}
+          ${phase.todos.length ? `<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">关联任务：${phase.todos.map((t) => `<span class="step-tool">${escapeHtml(t.content.split(' - ')[0] + (t.status === 'completed' ? '✅' : t.status === 'in_progress' ? '🔄' : '📋'))}</span>`).join(' ')}</div>` : ''}
+        </div>
+      </div>`;
+    }
+
+    function renderStep(step, i) {
+      const title = stepTitle(step);
+      const hasDetail = step.reasoning.length || step.tools.length || step.skills.length || step.subagents.length || step.texts.length > 1;
+      return `<div class="phase-step">
+        <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+          <span class="step-title">${escapeHtml(title)}</span>
+          <span class="step-right">
+            <span class="step-dur">${formatDuration(Math.round(step.duration / 1000))}</span>
+            ${step.finishReason ? `<span class="step-reason-badge">${escapeHtml(step.finishReason)}</span>` : ''}
+            ${hasDetail ? '<span style="color:var(--text-tertiary);font-size:9px">▶</span>' : ''}
+          </span>
+        </div>
+        ${hasDetail ? `<div class="step-detail">
+          ${step.texts.length > 1 ? `<div class="step-texts">${escapeHtml(step.texts[0].text?.slice(0, 200) || '')}${(step.texts[0].text?.length || 0) > 200 ? '...' : ''}</div>` : ''}
+          ${step.reasoning.length ? `<div class="step-reasoning">${escapeHtml(step.reasoning.map((r) => r.text?.slice(0, 120)).filter(Boolean).join(' ').slice(0, 300))}</div>` : ''}
+          ${step.tools.length ? `<div class="step-tools">${step.tools.map((t) => `<span class="step-tool">${toolIcon(t.tool)} ${escapeHtml(t.state?.title || t.tool || '')}</span>`).join('')}</div>` : ''}
+          ${step.skills.length ? `<div class="step-tools">${step.skills.map((t) => `<span class="step-tool">📦 ${escapeHtml(t.state?.input?.name || t.state?.metadata?.name || 'skill')}</span>`).join('')}</div>` : ''}
+          ${step.subagents.length ? `<div class="step-tools">${step.subagents.map((t) => `<span class="step-tool">🤖 ${escapeHtml(t.state?.title || 'subagent')}</span>`).join('')}</div>` : ''}
+          ${step.artifacts.length ? `<div class="step-artifacts">${step.artifacts.map((a) => `<span class="step-artifact">${artifactIcon(a.status)} ${escapeHtml(shortPath(a.file))}</span>`).join('')}</div>` : ''}
+          ${step.tokens?.total ? `<div class="step-tokens">tokens: ${compact(step.tokens.input || 0)} in / ${compact(step.tokens.output || 0)} out / ${compact(step.tokens.reasoning || 0)} reasoning</div>` : ''}
+        </div>` : ''}
+      </div>`;
+    }
+
+    function stepTitle(step) {
+      const firstTool = step.tools[0] || step.skills[0] || step.subagents[0];
+      if (firstTool) return firstTool.state?.title || firstTool.state?.input?.description || firstTool.state?.metadata?.name || firstTool.tool || '执行步骤';
+      const text = step.texts.find((t) => t.text && t.text.length > 20);
+      if (text) return text.text.slice(0, 80) + (text.text.length > 80 ? '...' : '');
+      return `Step ${step.index + 1}`;
+    }
+
+    /* ========== Task Card View (unchanged) ========== */
+
+    function renderBoard(cards) {
+      taskView.innerHTML = `<div class="card-row">${cards.map(renderCard).join('')}</div>`;
+    }
+
+    function renderCard(card) {
+      const state = stateInfo(card.todo.status);
+      return `
+        <article class="task-card ${escapeHtml(card.todo.status || 'pending')}">
+          <header class="card-header">
+            <div class="card-title-row">
+              <div class="card-title"><span class="status-dot" style="background:${state.color}"></span><span class="title-text">${escapeHtml(card.taskTitle || card.todo.content || 'Untitled TODO')}</span></div>
+              <span class="status-badge ${card.todo.status === 'pending' ? 'pending' : ''}" style="background:${card.todo.status === 'pending' ? '' : state.color}">${state.label}</span>
+            </div>
+            <div class="card-progress"><div class="progress-fill" style="width:${state.percent}%;background:${state.color}"></div></div>
+          </header>
+          <div class="card-body">
+            ${card.turns.length ? card.turns.map((turn, index) => renderTurn(card, turn, index)).join('') : renderEmptyTurn(card)}
+          </div>
+        </article>`;
+    }
+
+    function renderTurn(card, turn, index) {
+      const goalHtml = index === 0 && card.taskGoal ? `<div class="message-row user"><div class="bubble user-bubble"><span class="bubble-label">🎯 任务目标</span>${renderLongText(card.taskGoal)}</div><div class="avatar user-avatar">G</div></div>` : '';
+      return `<section class="turn-block">
+        <div class="artifact-title">Turn ${index + 1}</div>
+        ${goalHtml}
+        ${turn.userMessages.length ? turn.userMessages.map((event) => renderUserBubble(partText(event.part))).join('') : ''}
+        ${renderTurnFinalBubble(card, turn)}
+        ${renderTurnProcess(turn)}
+        ${renderTurnTraceability(turn)}
+      </section>`;
+    }
+
+    function renderEmptyTurn(card) {
+      const className = card.todo.status === 'in_progress' ? 'progress' : 'result';
+      const label = card.todo.status === 'pending' ? '📋 待办内容' : '📋 状态';
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(statusPlaceholder(card.todo.status))}</div></div>`;
+    }
+
+    function renderUserBubble(text) {
+      const cleaned = cleanUserInput(text);
+      return `<div class="message-row user"><div class="bubble user-bubble"><span class="bubble-label">🙋 用户输入</span>${renderLongText(cleaned)}</div><div class="avatar user-avatar">U</div></div>`;
+    }
+
+    function renderFinalBubble(card, state) {
+      const label = card.todo.status === 'completed' ? '📋 最终成果' : card.todo.status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
+      const className = card.todo.status === 'in_progress' ? 'progress' : 'result';
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(card.finalText)}${renderArtifacts(card.artifacts)}</div></div>`;
+    }
+
+    function renderTurnFinalBubble(card, turn) {
+      const label = card.todo.status === 'completed' ? '📋 最终成果' : card.todo.status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
+      const className = card.todo.status === 'in_progress' ? 'progress' : 'result';
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderClampedText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}</div></div>`;
+    }
+
+    function renderArtifacts(artifacts) {
+      if (!artifacts.length) return '';
+      const chips = artifacts.map((artifact) => {
+        const label = `${artifactIcon(artifact.status)} ${escapeHtml(shortPath(artifact.file))}`;
+        if (!artifact.patch) return `<span class="artifact-chip">${label}</span>`;
+        const id = 'artifact-' + Math.random().toString(36).slice(2);
+        return `<button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">${label}</button><div id="${id}" class="artifact-diff hidden"><pre class="diff">${escapeHtml(artifact.patch)}</pre></div>`;
+      }).join('');
+      return `<div class="artifact-block"><div class="artifact-title">📎 制品</div><div class="artifact-list">${chips}</div></div>`;
+    }
+
+    function toggleArtifact(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function renderProcess(card) {
+      if (!card.processTexts.length) return '';
+      return card.processTexts.slice(0, 3).map((text) => `<div class="message-row ai"><div style="width:24px;flex-shrink:0"></div><div class="bubble ai-bubble"><span class="bubble-label">🤖 AI 过程摘要</span>${renderLongText(text)}</div></div>`).join('');
+    }
+
+    function renderTurnProcess(turn) {
+      if (!turn.processTexts.length) return '';
+      return turn.processTexts.slice(0, 3).map((text) => `<div class="message-row ai"><div style="width:24px;flex-shrink:0"></div><div class="bubble ai-bubble"><span class="bubble-label">🤖 AI 过程摘要</span>${renderLongText(text)}</div></div>`).join('');
+    }
+
+    function renderTraceability(card) {
+      return `<details class="trace"><summary>📋 追溯详情</summary><div class="trace-content">
+        ${renderConversationTrace(card)}
+        ${renderNested('🤔 思考过程', card.reasoning, (event) => renderLongText(partText(event.part)))}
+        ${renderNested('🛠️ 工具调用', card.tools, renderTool)}
+        ${renderNested('🤖 SubAgent', card.subagents, renderTool)}
+      </div></details>`;
+    }
+
+    function renderTurnTraceability(turn) {
+      return `<details class="trace"><summary>📋 追溯详情</summary><div class="trace-content">
+        ${renderTurnConversationTrace(turn)}
+        ${renderNested('🤖 AI 过程消息', turn.processTexts, (text) => renderLongText(text))}
+        ${renderNested('🤔 思考过程', turn.reasoning, (event) => renderLongText(partText(event.part)))}
+        ${renderNested('🛠️ 工具调用', turn.tools, renderTool)}
+        ${renderNested('🤖 SubAgent', turn.subagents, renderTool)}
+      </div></details>`;
+    }
+
+    function renderSkillsOnBubble(skills) {
+      if (!skills.length) return '';
+      const chips = skills.map((event) => {
+        const part = event.part || {};
+        const state = part.state || {};
+        const name = state.input?.name || state.metadata?.name || 'skill';
+        const id = 'skill-b-' + Math.random().toString(36).slice(2);
+        return `<button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">📦 ${escapeHtml(name)}</button><div id="${id}" class="artifact-diff hidden">${renderSkillTool(part)}</div>`;
+      }).join('');
+      return `<div class="artifact-block"><div class="artifact-title">📦 Skill 调用</div><div class="artifact-list">${chips}</div></div>`;
+    }
+
+    function renderTurnConversationTrace(turn) {
+      const rows = [
+        ...turn.userMessages.map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)), raw: partText(event.part) })),
+        ...turn.aiTexts.map((event) => ({ role: 'AI', text: partText(event.part) }))
+      ];
+      if (!rows.length) return '';
+      return `<details class="nested"><summary>💬 完整对话 · ${rows.length}条</summary><div class="nested-content">${rows.map((row) => `<div class="inline-message">[${row.role}] ${renderLongText(row.text, 90)}${row.raw && row.raw !== row.text ? `<details><summary>查看原始输入</summary><pre class="diff">${escapeHtml(row.raw)}</pre></details>` : ''}</div>`).join('')}</div></details>`;
+    }
+
+    function renderConversationTrace(card) {
+      const rows = [
+        ...card.userTexts.map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)), raw: partText(event.part) })),
+        ...card.aiTexts.map((event) => ({ role: 'AI', text: partText(event.part) }))
+      ];
+      if (!rows.length) return '';
+      return `<details class="nested"><summary>💬 完整对话 · ${rows.length}条</summary><div class="nested-content">${rows.map((row) => `<div class="inline-message">[${row.role}] ${renderLongText(row.text, 90)}${row.raw && row.raw !== row.text ? `<details><summary>查看原始输入</summary><pre class="diff">${escapeHtml(row.raw)}</pre></details>` : ''}</div>`).join('')}</div></details>`;
+    }
+
+    function renderNested(title, events, renderFn) {
+      if (!events.length) return '';
+      return `<details class="nested"><summary>${title} · ${events.length}次</summary><div class="nested-content">${events.map(renderFn).join('')}</div></details>`;
+    }
+
+    function renderTool(event) {
+      const part = event.part || {};
+      if (part.tool === 'skill') return renderSkillTool(part);
+      const title = part.state?.title || part.title || part.state?.metadata?.description || part.state?.input?.description || part.tool || 'tool';
+      const output = part.state?.output || part.state?.metadata?.output || '';
+      return `<div><strong>${toolIcon(part.tool)} ${escapeHtml(part.tool || 'tool')}</strong>: ${escapeHtml(title)}${output ? `<details><summary>查看输出</summary><pre class="diff">${escapeHtml(String(output).slice(0, 4000))}</pre></details>` : ''}</div>`;
+    }
+
+    function renderSkillTool(part) {
+      const state = part.state || {};
+      const name = state.input?.name || state.metadata?.name || 'unknown-skill';
+      const dir = state.metadata?.dir || '';
+      const output = String(state.output || '');
+      const summary = extractSkillSummary(output, name);
+      const url = skillUrl(name);
+      return `<div class="skill-box">
+        <div class="skill-title">
+          <span>📦 skill: ${escapeHtml(name)}</span>
+          ${url ? `<a class="skill-link" href="${escapeAttr(url)}" target="_blank" rel="noreferrer">skills.sh ↗</a>` : `<span style="color:var(--text-tertiary);font-weight:500">暂无公开链接</span>`}
+        </div>
+        <div class="skill-meta">${renderMarkdown(summary)}</div>
+        ${dir ? `<div class="skill-meta">本地路径：${escapeHtml(dir)}</div>` : ''}
+        ${output ? `<details><summary style="font-size:9px;color:var(--text-secondary);cursor:pointer">查看技能完整内容</summary><div class="skill-meta" style="margin-top:6px">${renderMarkdown(stripSkillWrapper(output))}</div></details>` : ''}
+      </div>`;
+    }
+
+    function stripSkillWrapper(text) {
+      return String(text || '').replace(/<skill_content[^>]*>/g, '').replace(/<\/skill_content>/g, '').trim();
+    }
+
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let html = escapeHtml(text);
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre class="diff"><code>$2</code></pre>');
+      html = html.replace(/^#### (.+)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+      html = html.replace(/^---+\s*$/gm, '<hr>');
+      html = html.replace(/\n\n/g, '</p><p>');
+      html = html.replace(/\n/g, '<br>');
+      return '<p>' + html + '</p>';
+    }
+
+    function extractSkillSummary(output, name) {
+      const body = stripSkillWrapper(output);
+      if (!body) return '已调用技能。';
+      const lines = body.split('\n').map((line) => line.trim()).filter(Boolean);
+      const heading = lines.find((line) => line.startsWith('# ') && !line.toLowerCase().includes(`skill: ${String(name).toLowerCase()}`));
+      if (heading) return heading.slice(0, 220);
+      const nonMeta = lines.find((line) => !line.startsWith('#') && !line.startsWith('---') && !line.startsWith('Base directory'));
+      return (nonMeta || `Skill ${name}`).slice(0, 220);
+    }
+
+    function skillUrl(name) {
+      const map = {
+        brainstorming: 'obra/superpowers',
+        'dispatching-parallel-agents': 'obra/superpowers',
+        'executing-plans': 'obra/superpowers',
+        'finishing-a-development-branch': 'obra/superpowers',
+        'receiving-code-review': 'obra/superpowers',
+        'requesting-code-review': 'obra/superpowers',
+        'subagent-driven-development': 'obra/superpowers',
+        'systematic-debugging': 'obra/superpowers',
+        'test-driven-development': 'obra/superpowers',
+        'using-git-worktrees': 'obra/superpowers',
+        'using-superpowers': 'obra/superpowers',
+        'verification-before-completion': 'obra/superpowers',
+        'writing-plans': 'obra/superpowers',
+        'writing-skills': 'obra/superpowers',
+        'frontend-design': 'anthropics/skills',
+        'skill-creator': 'anthropics/skills',
+        'find-skills': 'vercel-labs/skills'
+      };
+      const source = map[name];
+      return source ? `https://skills.sh/${source}/${encodeURIComponent(name)}` : '';
+    }
+
+    function renderLongText(text, limit = 180) {
+      const safe = escapeHtml(text || '');
+      if (!text || text.length <= limit) return safe;
+      const id = 'long-' + Math.random().toString(36).slice(2);
+      return `<span id="${id}" data-full="${escapeAttr(text)}" data-short="${escapeAttr(text.slice(0, limit) + '...')}">${escapeHtml(text.slice(0, limit))}...</span><span class="link-button" onclick="toggleLongText('${id}', this)">[展开]</span>`;
+    }
+
+    function toggleLongText(id, trigger) {
+      const el = document.getElementById(id);
+      const expanded = trigger.textContent === '[折叠]';
+      el.textContent = expanded ? el.dataset.short : el.dataset.full;
+      trigger.textContent = expanded ? '[展开]' : '[折叠]';
+    }
+
+    function renderClampedText(text, maxLines = 2) {
+      if (!text) return '';
+      const safe = escapeHtml(text);
+      if (text.length <= 160) return `<span class="text-clamp-${maxLines}">${safe}</span>`;
+      const id = 'clamp-' + Math.random().toString(36).slice(2);
+      return `<span id="${id}" class="text-clamp-${maxLines}" data-full="${escapeAttr(text)}">${safe}</span> <span class="link-button" onclick="toggleClamp('${id}', this)">[展开]</span>`;
+    }
+
+    function toggleClamp(id, trigger) {
+      const el = document.getElementById(id);
+      const expanded = trigger.textContent === '[折叠]';
+      el.className = expanded ? `text-clamp-2` : '';
+      trigger.textContent = expanded ? '[展开]' : '[折叠]';
+    }
+
+    function renderEmptyUser() { return '<div class="empty">暂无关联用户输入</div>'; }
+    function partText(part) { return part?.text || part?.state?.input?.content || part?.state?.output || ''; }
+    function cleanUserInput(text) {
+      const value = String(text || '').trim();
+      if (!value) return '';
+
+      const invocationMatch = value.match(/Use the invocation arguments below as the user input for this workflow:\s*```(?:text)?\s*([\s\S]*?)```/i);
+      if (invocationMatch) return invocationMatch[1].trim();
+
+      const pastedMatch = value.match(/^\[Pasted[^\]]*\]\s*([\s\S]*)$/i);
+      if (pastedMatch && pastedMatch[1].trim()) return pastedMatch[1].trim();
+
+      const commandMatch = value.match(/^Equivalent\s+[^\n]+\nCommand name:[^\n]+\n[\s\S]*?```(?:text)?\s*([\s\S]*?)```/i);
+      if (commandMatch) return commandMatch[1].trim();
+
+      return value;
+    }
+    function statusPlaceholder(status) { return status === 'pending' ? '等待处理。' : status === 'in_progress' ? '任务正在处理中。' : '任务已完成。'; }
+    function stateInfo(status) {
+      if (status === 'completed') return { label: '✅ 已完成', color: 'var(--success)', percent: 100 };
+      if (status === 'in_progress') return { label: '🔄 进行中', color: 'var(--warning)', percent: 40 };
+      return { label: '📋 待办', color: 'var(--text-tertiary)', percent: 0 };
+    }
+    function formatDuration(seconds) { return seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`; }
+    function formatTokens(tokens = {}) { return `${compact(tokens.input || 0)} in / ${compact(tokens.output || 0)} out`; }
+    function formatSummary(summary = {}) { return `+${summary.additions || 0}/-${summary.deletions || 0} · ${summary.files || 0} files`; }
+    function compact(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n); }
+    function artifactIcon(status) { return status === 'added' ? '➕' : status === 'deleted' ? '🗑️' : '✏️'; }
+    function toolIcon(tool) { return ({ skill: '📦', bash: '💻', task: '🤖', todowrite: '✅', write: '✏️', edit: '✏️', read: '📖', glob: '🔍', grep: '🔍' })[tool] || '🛠️'; }
+    function shortPath(path) { return String(path || '').split('/').slice(-2).join('/'); }
+    function artifactKey(path) {
+      const normalized = String(path || '').replace(/\\/g, '/');
+      if (normalized.startsWith('openspec/')) return normalized;
+      const marker = '/openspec/';
+      if (normalized.includes(marker)) return 'openspec/' + normalized.split(marker).pop();
+      return normalized.split('/').slice(-3).join('/');
+    }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/\n/g, '&#10;'); }
+  </script>
+</body>
+</html>
