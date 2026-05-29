@@ -169,7 +169,7 @@
     .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .system-logos { display: flex; gap: 4px; flex-shrink: 0; margin-left: 2px; }
-    .system-logo { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; white-space: nowrap; }
+    .system-logo-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px dashed var(--border); border-radius: 4px; opacity: 0.45; }
     .status-badge { border-radius: 999px; padding: 2px 8px; color: #fff; font-size: 10px; font-weight: 700; white-space: nowrap; }
     .status-badge.pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
     .card-progress { height: 4px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
@@ -716,18 +716,19 @@
     }
 
     const SYSTEM_LOGOS = [
-      { name: 'idesigner', label: 'ID', color: '#6366f1' },
-      { name: 'cloudm', label: 'CM', color: '#0ea5e9' },
-      { name: 'codehub', label: 'CH', color: '#22c55e' },
-      { name: 'yunlong', label: 'YL', color: '#f59e0b' },
+      { name: 'idesigner', color: '#6366f1' },
+      { name: 'cloudm', color: '#0ea5e9' },
+      { name: 'codehub', color: '#22c55e' },
+      { name: 'yunlong', color: '#f59e0b' },
     ];
 
     const TASK_SYSTEM_RULES = [
       { keywords: ['proposal', 'requirement', '需求'], systems: ['idesigner'] },
-      { keywords: ['design', 'architecture', 'approach', '方案'], systems: ['idesigner', 'cloudm'] },
-      { keywords: ['code', 'coding', 'implement', '编码'], systems: ['codehub'] },
-      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '编译验证'], systems: ['yunlong'] },
+      { keywords: ['design', 'architecture', 'approach', '方案', '架构'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['code', 'coding', 'implement', '编码', '实现'], systems: ['codehub'] },
+      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '检查'], systems: ['yunlong'] },
       { keywords: ['push', 'deploy', 'release', 'publish', 'repo', '仓库', '上库'], systems: ['codehub'] },
+      { keywords: ['spec', 'specs', 'document'], systems: [] },
     ];
 
     function getSystemLogos(content) {
@@ -744,7 +745,7 @@
     function renderSystemLogos(content) {
       const logos = getSystemLogos(content);
       if (!logos.length) return '';
-      const chips = logos.map((s) => `<span class="system-logo" style="background:${s.color}">${escapeHtml(s.label)}</span>`).join('');
+      const chips = logos.map((s) => `<span class="system-logo-placeholder" title="${escapeHtml(s.name)}"></span>`).join('');
       return `<span class="system-logos">${chips}</span>`;
     }
 
