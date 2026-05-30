@@ -1,0 +1,14 @@
+workflow: hotfix
+phase: archive
+build_mode: direct
+isolation: branch
+verify_mode: light
+base_ref: 65ece78527638731e1d0b91924d4357c1c8564f2
+design_doc: null
+plan: null
+verify_result: pass
+verification_report: docs/superpowers/reports/2026-05-30-fallback-completed-card-allocation-verify.md
+branch_status: handled
+created_at: 2026-05-30
+verified_at: 2026-05-30
+archived: true
