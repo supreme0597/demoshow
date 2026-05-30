@@ -1430,7 +1430,12 @@
       for (const [needle, terms] of rules) {
         if (todo.includes(needle) && terms.some((term) => haystack.includes(term))) score += 4;
       }
-      for (const token of todo.split(/[^a-z0-9_.-]+/).filter((token) => token.length >= 4)) {
+      // NOTE: 中英双语兼容的分词匹配算法
+      // 允许中文字词（长度 >= 2）与英文单词（长度 >= 4）同时参与评分，彻底解决中文被纯英文正则屏蔽切碎的问题
+      const tokens = todo.split(/[^a-z0-9\u4e00-\u9fa5_.-]+/i).filter((token) => {
+        return /[\u4e00-\u9fa5]/.test(token) ? token.length >= 2 : token.length >= 4;
+      });
+      for (const token of tokens) {
         if (haystack.includes(token)) score += 1;
       }
       return score;
