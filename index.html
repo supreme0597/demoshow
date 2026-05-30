@@ -1120,23 +1120,19 @@
         card.tempStatus = 'pending';
       }
 
-      if (firstWriteIdx > 0) {
-        const preEvents = timeline.slice(0, firstWriteIdx);
-        const hasSubstance = preEvents.some(e => e.type === 'text' || e.type === 'tool');
-        // NOTE: 只有当 timeline 从会话最开始（messageIndex 为 0）启动时才创建独立的 initCard
-        const isFromStart = timeline.length > 0 && timeline[0].messageIndex === 0;
-        if (hasSubstance && isFromStart) {
-          hasPreEvents = true;
-          initCard = createCard({
-            content: "会话初始化与前置调研：明确意图并产出规划",
-            status: "completed",
-            priority: "high"
-          }, -1);
-          initCard.taskTitle = "会话初始化与前置调研";
-          initCard.taskGoal = "分析用户输入意图，探索项目上下文，并规划后续 TODO 任务列表。";
-          initCard.tempStatus = 'completed';
-          cards.unshift(initCard);
-        }
+      // NOTE: 只要 timeline 会话是从最开始（messageIndex 为 0）启动，就无条件创建前置调研卡 initCard
+      const isFromStart = timeline.length > 0 && timeline[0].messageIndex === 0;
+      if (isFromStart) {
+        hasPreEvents = true;
+        initCard = createCard({
+          content: "会话初始化与前置调研：明确意图并产出规划",
+          status: "completed",
+          priority: "high"
+        }, -1);
+        initCard.taskTitle = "会话初始化与前置调研";
+        initCard.taskGoal = "分析用户输入意图，探索项目上下文，并规划后续 TODO 任务列表。";
+        initCard.tempStatus = 'completed';
+        cards.unshift(initCard);
       }
 
       // 将事件按物理 messageIndex 组织，还原 AI 单词回复的整体语境
@@ -1185,9 +1181,16 @@
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
 
+        // NOTE: 检测当前物理消息中是否有实质性的文件修改（patch/diffs）或除 todowrite 之外的工具调用
+        const hasSubstanceDev = events.some(e => 
+          e.type === 'patch' || 
+          e.type === 'diffs' || 
+          (e.type === 'tool' && e.part?.tool !== 'todowrite')
+        );
+
         // NOTE: 前置调研阶段保护链路
-        // 凡是第一个 todowrite 之前或其本身的消息，均属于会话初始化与前置调研阶段，强归属到 initCard 
-        if (initCard && (msgIndex <= firstTodowriteMsgIndex || firstTodowriteMsgIndex === -1)) {
+        // 凡是第一个 todowrite 之前或其本身的消息，且【没有实质性文件开发或工具动作】时，才归属到 initCard 
+        if (initCard && (msgIndex <= firstTodowriteMsgIndex || firstTodowriteMsgIndex === -1) && !hasSubstanceDev) {
           if (todowriteEvent) {
             const inputTodos = todowriteEvent.part.state?.input?.todos || [];
             for (const card of cards) {
