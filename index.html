@@ -463,6 +463,61 @@
       border-bottom: 0;
       padding-bottom: 0;
     }
+
+    /* Markdown 表格美化 */
+    .markdown-table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0;
+      font-size: 11px;
+      line-height: 1.4;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .markdown-table th {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-weight: 700;
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .markdown-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .markdown-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .markdown-table tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    /* 决策问句样式 */
+    .action-question-box {
+      background: color-mix(in srgb, var(--warning) 10%, var(--bg-secondary));
+      border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border));
+      border-left: 4px solid var(--warning);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      line-height: 1.45;
+    }
+    .question-emoji {
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .question-text {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
   </style>
 </head>
 <body>
@@ -1694,7 +1749,43 @@
       const status = isLastTurn ? card.todo.status : 'in_progress';
       const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
       const className = status === 'in_progress' ? 'progress' : 'result';
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
+
+      const { mainText, question } = splitActionableQuestion(turn.finalText);
+      
+      let bubbleBodyHtml = '';
+      if (question) {
+        const id = 'details-doc-' + Math.random().toString(36).slice(2);
+        bubbleBodyHtml = `
+          <div class="action-question-box">
+            <span class="question-emoji">❓</span>
+            <span class="question-text">${escapeHtml(question)}</span>
+          </div>
+          ${mainText ? `
+            <div class="artifact-block" style="margin: 6px 0 2px 0;">
+              <div class="artifact-list">
+                <span class="artifact-chip" onclick="toggleArtifact('${id}')" style="cursor:pointer; font-weight:700;">📄 查看详情报告 (Markdown)</span>
+              </div>
+              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
+                <div class="skill-meta">${renderMarkdown(mainText)}</div>
+              </div>
+            </div>` : ''}
+        `;
+      } else {
+        const id = 'long-md-' + Math.random().toString(36).slice(2);
+        const hasLongText = (turn.finalText || '').length > 200;
+        
+        if (hasLongText) {
+          bubbleBodyHtml = `
+            <div class="collapsible-wrapper">
+              <div id="${id}" class="collapsible-text" style="-webkit-line-clamp: 3;">${renderMarkdown(turn.finalText)}</div>
+              <span class="link-button collapsible-btn" onclick="toggleCollapsibleText('${id}', this)">[展开]</span>
+            </div>`;
+        } else {
+          bubbleBodyHtml = `<div>${renderMarkdown(turn.finalText)}</div>`;
+        }
+      }
+
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${bubbleBodyHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
@@ -1924,9 +2015,37 @@
       return String(text || '').replace(/<skill_content[^>]*>/g, '').replace(/<\/skill_content>/g, '').trim();
     }
 
+    function splitActionableQuestion(text) {
+      if (!text || typeof text !== 'string') return { mainText: '', question: '' };
+      const trimmed = text.trim();
+      
+      // 如果总体文字很短，不需要剥离问句
+      if (trimmed.length < 150) {
+        return { mainText: trimmed, question: '' };
+      }
+
+      // 将文本按换行切分，查找最后几段
+      const paragraphs = trimmed.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      if (paragraphs.length >= 2) {
+        const lastPara = paragraphs[paragraphs.length - 1];
+        
+        // 判断最后一段是否为决策确认性问句
+        const isQuestion = lastPara.endsWith('?') || lastPara.endsWith('？');
+        const hasDecisionKeywords = /(是否|确认|执行|推进|决策|开始|选择|哪种)/.test(lastPara);
+        
+        if (lastPara.length < 120 && (isQuestion || hasDecisionKeywords)) {
+          const mainText = paragraphs.slice(0, -1).join('\n\n');
+          return { mainText, question: lastPara };
+        }
+      }
+      return { mainText: trimmed, question: '' };
+    }
+
     function renderMarkdown(text) {
       if (!text) return '';
       let html = escapeHtml(text);
+      
+      // 代码块和标题、粗斜体等标准解析
       html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre class="diff"><code>$2</code></pre>');
       html = html.replace(/^#### (.+)$/gm, '<h5>$1</h5>');
       html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
@@ -1938,6 +2057,50 @@
       html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
       html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
       html = html.replace(/^---+\s*$/gm, '<hr>');
+
+      // 表格解析
+      const lines = html.split('\n');
+      let inTable = false;
+      let tableHtml = '';
+      const processedLines = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+          const cells = line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+          
+          // 检测下一行是否是表格分割行 (如 |---|---|)
+          const nextLine = (lines[i + 1] || '').trim();
+          const isSeparator = nextLine.startsWith('|') && nextLine.includes('-') && nextLine.endsWith('|');
+          
+          if (!inTable && isSeparator) {
+            inTable = true;
+            tableHtml = '<table class="markdown-table"><thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+            i++; // 跳过分割行
+            continue;
+          }
+          
+          if (inTable) {
+            tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            continue;
+          }
+        }
+        
+        if (inTable) {
+          tableHtml += '</tbody></table>';
+          processedLines.push(tableHtml);
+          inTable = false;
+        }
+        
+        processedLines.push(lines[i]);
+      }
+      
+      if (inTable) {
+        tableHtml += '</tbody></table>';
+        processedLines.push(tableHtml);
+      }
+
+      html = processedLines.join('\n');
       html = html.replace(/\n\n/g, '</p><p>');
       html = html.replace(/\n/g, '<br>');
       return '<p>' + html + '</p>';
