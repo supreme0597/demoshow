@@ -1183,16 +1183,40 @@
     }
 
     function inferOutcomeFromCard(card) {
-      const artifactNames = card.artifacts.map((artifact) => shortPath(artifact.file));
-      if (artifactNames.length) return `${statusVerb(card.todo.status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
+      const produced = card.artifacts.filter(a => a.status !== 'read').map(a => shortPath(a.file));
+      const readOnly = card.artifacts.filter(a => a.status === 'read').map(a => shortPath(a.file));
+      
+      let outcome = '';
+      if (produced.length) {
+        outcome += `产出 ${produced.slice(0, 4).join('、')}${produced.length > 4 ? ` 等 ${produced.length} 个制品` : ''}`;
+        if (readOnly.length) {
+          outcome += `，并参考了 ${readOnly.slice(0, 3).join('、')}${readOnly.length > 3 ? ` 等 ${readOnly.length} 个文件` : ''}`;
+        }
+      } else if (readOnly.length) {
+        outcome += `参考了 ${readOnly.slice(0, 4).join('、')}${readOnly.length > 4 ? ` 等 ${readOnly.length} 个文件` : ''}`;
+      }
+      
+      if (outcome) return `${statusVerb(card.todo.status)}，${outcome}。`;
       return statusPlaceholder(card.todo.status);
     }
 
     function inferOutcomeFromTurn(turn, card, isLastTurn = true) {
-      const artifactNames = turn.artifacts.map((artifact) => shortPath(artifact.file));
+      const produced = turn.artifacts.filter(a => a.status !== 'read').map(a => shortPath(a.file));
+      const readOnly = turn.artifacts.filter(a => a.status === 'read').map(a => shortPath(a.file));
       const toolNames = [...turn.tools, ...turn.skills, ...turn.subagents].map((event) => event.part?.tool).filter(Boolean);
       const status = isLastTurn ? card.todo.status : 'in_progress';
-      if (artifactNames.length) return `${statusVerb(status)}，产出 ${artifactNames.slice(0, 4).join('、')}${artifactNames.length > 4 ? ` 等 ${artifactNames.length} 个制品` : ''}。`;
+      
+      let outcome = '';
+      if (produced.length) {
+        outcome += `产出 ${produced.slice(0, 4).join('、')}${produced.length > 4 ? ` 等 ${produced.length} 个制品` : ''}`;
+        if (readOnly.length) {
+          outcome += `，并参考了 ${readOnly.slice(0, 3).join('、')}${readOnly.length > 3 ? ` 等 ${readOnly.length} 个文件` : ''}`;
+        }
+      } else if (readOnly.length) {
+        outcome += `参考了 ${readOnly.slice(0, 4).join('、')}${readOnly.length > 4 ? ` 等 ${readOnly.length} 个文件` : ''}`;
+      }
+      
+      if (outcome) return `${statusVerb(status)}，${outcome}。`;
       if (toolNames.length) return `${statusVerb(status)}，执行了 ${toolNames.length} 次相关操作：${toolNames.slice(0, 5).join('、')}。`;
       return statusPlaceholder(status);
     }
