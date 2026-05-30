@@ -689,38 +689,82 @@
       
       if (todoVersions.length > 0) {
         const order = { completed: 0, in_progress: 1, pending: 2 };
+
+        // NOTE: 版本边界算法
+        // 两版 todowrite 之间必然存在一条用户触发消息（如"重新列 todo"），
+        // 它是版本分水岭：水岭之前属于旧版，水岭（含）之后属于新版。
+        // 通过找到这个 user 消息，可精确切割每个版本应看到的数据范围。
+        //
+        // 示例（session3.json）：
+        //   Msgs 0-17: 共同初始调研（各版本 init 卡都包含）
+        //   Msg  18:   V1 todowrite + V1 分析 → 只属于 V1
+        //   Msg  19:   V1 AI 总结 → 只属于 V1
+        //   Msg  20:   user "拆解不对" → 版本边界，属于 V2 起点
+        //   Msg  21:   V2 todowrite → V2 核心
+        //   Msg  22:   V2 AI 总结 → V2 结束
+        //
+        // boundaries[i] = 版本 i 的"终止前"触发下一版的 user 消息的 messageIndex
+        //   历史版本结束于 boundaries[i] - 1（不含触发消息）
+        //   下一个版本从 boundaries[i] 开始（含触发消息）
+        const boundaries = todoVersions.map((ver, vi) => {
+          if (vi === todoVersions.length - 1) return messages.length; // 最后一版无下一边界
+          const nextVer = todoVersions[vi + 1];
+          // 在本版 todowrite 之后、下版 todowrite 之前找第一条 user 消息
+          for (let mi = ver.messageIndex + 1; mi < nextVer.messageIndex; mi++) {
+            const role = (messages[mi]?.info?.role) || messages[mi]?.role;
+            if (role === 'user') return mi;
+          }
+          // 找不到 user 消息（两版 todowrite 紧邻）则以下版 todowrite 为界
+          return nextVer.messageIndex;
+        });
+
         for (let vi = 0; vi < todoVersions.length; vi++) {
           const ver = todoVersions[vi];
           ver.sortedTodos = [...ver.todos].sort(
             (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index
           );
-          
-          // NOTE: 截断策略：历史版本的 timeline/messages 截断至「下一版本 todowrite 所在消息 -1」。
-          // 最新版本（最后一个）不截断，使用完整数据，确保该版本 todowrite 之后的 AI 总结文本也完整可见。
-          const isLastVersion = vi === todoVersions.length - 1;
-          const nextVer = todoVersions[vi + 1];
-          
+
+          const isFirstVersion = vi === 0;
+          const isLastVersion  = vi === todoVersions.length - 1;
+
+          // 本版的时间轴由两段拼合：
+          //   ① 共享初始段：从0到"上一版 todowrite 开始前"（即 prevVer.messageIndex - 1）
+          //      这段包含 init card 的调研操作，被所有版本共享
+          //   ② 本版独占段：从 boundaries[vi-1]（触发本版的 user 消息）到本版结束
+          //      - 历史版本：结束于 boundaries[vi] - 1（不含下一个 user 触发）
+          //      - 最新版本：结束于末尾（包含全部后续 AI 总结）
+          const sharedEnd   = isFirstVersion ? -1 : todoVersions[vi - 1].messageIndex - 1;
+          const ownStart    = isFirstVersion ?  0 : boundaries[vi - 1];
+          const ownEnd      = isLastVersion  ? messages.length - 1 : boundaries[vi] - 1;
+
           let verTimeline, verMessages;
-          if (isLastVersion) {
-            verTimeline = timeline;
-            verMessages = messages;
+          if (isFirstVersion) {
+            // 第一版：从 0 到本版结束，没有共享初始段问题
+            verTimeline = timeline.filter(e => e.messageIndex <= ownEnd);
+            verMessages = messages.slice(0, ownEnd + 1);
           } else {
-            // 截断到下一个版本的 todowrite 所在消息前一条（exclusive），保留本版本之后的后续 AI 总结
-            const cutoffMsgIndex = nextVer.messageIndex !== undefined ? nextVer.messageIndex - 1 : ver.messageIndex;
-            verTimeline = timeline.filter(e => e.messageIndex <= cutoffMsgIndex);
-            verMessages = messages.slice(0, cutoffMsgIndex + 1);
+            // 非第一版：共享初始段 [0, sharedEnd] UNION 本版独占段 [ownStart, ownEnd]
+            // 排除上一版独占工作区（sharedEnd+1 到 ownStart-1），避免 groupMessagesToCards 把旧版
+            // 的 todowrite 事件错误地归属到本版的卡片里
+            verTimeline = timeline.filter(e =>
+              e.messageIndex <= sharedEnd || (e.messageIndex >= ownStart && e.messageIndex <= ownEnd)
+            );
+            verMessages = [
+              ...messages.slice(0, sharedEnd + 1),
+              ...messages.slice(ownStart, ownEnd + 1),
+            ];
           }
 
           const verCards = groupMessagesToCards(verTimeline, ver.sortedTodos);
           attachGlobalDiffs(verCards, collectGlobalDiffs(verMessages));
           for (const card of verCards) finalizeCard(card);
           ver.cards = verCards;
-          
-          const verSteps = extractSteps(verMessages);
+
+          const verSteps  = extractSteps(verMessages);
           const verPhases = aggregatePhases(verSteps);
           attachPhaseTodos(verPhases, ver.sortedTodos, verSteps);
-          
-          ver.steps = verSteps;
+
+          ver.steps  = verSteps;
           ver.phases = verPhases;
         }
       }
