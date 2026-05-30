@@ -554,6 +554,44 @@
       font-weight: 700;
       color: var(--text-primary);
     }
+
+    /* Error Flag Styles */
+    .ai-bubble.flagged-error {
+      border: 2px solid var(--error) !important;
+      background: color-mix(in srgb, var(--error) 8%, transparent) !important;
+      position: relative;
+    }
+    .ai-bubble.flagged-warning {
+      border: 1.5px solid var(--warning) !important;
+      position: relative;
+    }
+    .ai-bubble.flagged-info {
+      border: 1.5px dashed var(--accent) !important;
+      position: relative;
+    }
+    .flag-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      cursor: help;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index: 2;
+    }
+    .flag-badge.error { background: var(--error); }
+    .flag-badge.warning { background: var(--warning); }
+    .flag-badge.info { background: var(--accent); }
+    .message-row.ai {
+      position: relative;
+    }
   </style>
 </head>
 <body>
@@ -798,6 +836,7 @@
           const verCards = groupMessagesToCards(verTimeline, ver.sortedTodos);
           attachGlobalDiffs(verCards, collectGlobalDiffs(verMessages));
           for (const card of verCards) finalizeCard(card);
+          detectErrorSignals(verCards);
           ver.cards = verCards;
 
           const verSteps  = extractSteps(verMessages);
@@ -815,6 +854,7 @@
       const activeVer = todoVersions[activeVersionIndex];
       const todos = activeVer ? activeVer.sortedTodos : [];
       const cards = activeVer ? activeVer.cards : fallbackCards(timeline);
+      if (!activeVer) detectErrorSignals(cards);
       const activeSteps = activeVer ? activeVer.steps : steps;
       const activePhases = activeVer ? activeVer.phases : phases;
       
@@ -2163,6 +2203,12 @@
       const status = isLastTurn ? card.todo.status : 'in_progress';
       const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
       const className = status === 'in_progress' ? 'progress' : 'result';
+      const flag = turn.flagged;
+      const flagLevel = flag?.level || 'error';
+      const flagBadge = flag?.isProblematic
+        ? `<span class="flag-badge ${escapeHtml(flagLevel)}" title="${escapeAttr(buildFlagTooltip(flag))}">${flagLevel === 'error' ? '✕' : flagLevel === 'warning' ? '⚠' : 'ℹ'}</span>`
+        : '';
+      const flagClass = flag?.isProblematic ? ` flagged-${flagLevel}` : '';
 
       const { mainText, question } = splitActionableQuestion(turn.finalText);
       
@@ -2199,7 +2245,7 @@
         }
       }
 
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${bubbleBodyHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}${flagClass}">${flagBadge}<span class="bubble-label">${label}</span>${bubbleBodyHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
@@ -2630,6 +2676,325 @@
     }
     function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
     function escapeAttr(value) { return escapeHtml(value).replace(/\n/g, '&#10;'); }
+
+    /* ========== Error Signal Detection ========== */
+
+    const ERROR_KEYWORDS = {
+      dissatisfaction: {
+        zh: {
+          correctionPhrase: ['不是这个意思', '我不是这个意思', '不是我想要的', '你没按我说的', '你漏了', '你忽略了'],
+          direct: ['不对', '错了', '不对吧', '不对啊', '不是这样', '不正确', '错了吧', '这不对', '答错', '理解错', '搞错'],
+          fix: ['重做', '重新来', '重新做', '修正一下', '更正一下'],
+          dissatisfaction: ['有问题', '不行', '不满足', '不满意', '没做好'],
+          stillWrong: ['仍然不对', '还是不对', '还是一样', '没变化', '还是那样'],
+        },
+        en: {
+          correctionPhrase: ['not what i asked', 'not what i meant', 'not what i wanted', 'you missed', 'you ignored', "you didn't", 'you did not'],
+          direct: ['wrong', 'incorrect', "not right", 'nope', "that's wrong", "that is wrong", "not correct"],
+          fix: ["fix it", 'rework', 'redo'],
+          dissatisfaction: ["not working", "doesn't work", "does not work", 'broken', 'issue', 'problem', 'error'],
+          stillWrong: ['still', "still not", "still wrong", "same issue", 'unchanged', "same problem"],
+        }
+      },
+      selfCorrection: {
+        zh: ['抱歉', '说错了', '之前说的不对', '刚才不对', '我错了', '我的错'],
+        en: ["i'm sorry", 'i apologize', 'i made a mistake', 'my mistake', "i was wrong", 'i got that wrong'],
+      },
+      userRepeat: {
+        zh: ['再看看', '再检查一下', '重新检查', '再查一下', '再确认一下', '还是看一下'],
+        en: ['look again', 'check again', 'verify again', 'recheck', 'rerun'],
+      }
+    };
+
+    function matchDissatisfactionKeywords(text) {
+      if (!text || typeof text !== 'string') return null;
+      const lower = text.toLowerCase().trim();
+      const { zh, en } = ERROR_KEYWORDS.dissatisfaction;
+      for (const [category, patterns] of Object.entries(zh)) {
+        for (const keyword of patterns) {
+          if (matchesChineseKeyword(lower, keyword, category)) {
+            return { keyword, category, language: 'zh' };
+          }
+        }
+      }
+      for (const [category, patterns] of Object.entries(en)) {
+        for (const keyword of patterns) {
+          if (matchesEnglishKeyword(lower, keyword, category)) {
+            return { keyword, category, language: 'en' };
+          }
+        }
+      }
+      return null;
+    }
+
+    function matchesChineseKeyword(text, keyword, category) {
+      if (!text.includes(keyword)) return false;
+      if (category === 'correctionPhrase') return true;
+      if (isLikelyNewRequirement(text)) return false;
+
+      const hasPreviousAnswerContext = /(?:上次|上一|刚才|前面|之前|回复|回答|答案|结果|你给|你写|你做|这个回复|这个回答|这个答案|这段回复|这段回答|这里不对)/.test(text);
+      const hasExplicitWrongContext = /(?:不对|错了|不正确|不是这样|答错|理解错|搞错|还是|仍然|没变化)/.test(text);
+
+      if (category === 'fix') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      if (category === 'dissatisfaction') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      return true;
+    }
+
+    function matchesEnglishKeyword(text, keyword, category) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
+      if (!pattern.test(text)) return false;
+      if (category === 'correctionPhrase') return true;
+      if (isLikelyNewRequirement(text)) return false;
+
+      const hasPreviousAnswerContext = /\b(?:your|previous|last|above|earlier|answer|response|result|output|that answer|this answer|that response|this response)\b/i.test(text);
+      const hasExplicitWrongContext = /\b(?:wrong|incorrect|broken|not\s+(?:right|working|correct)|doesn'?t\s+work|still\s+(?:wrong|not|broken|failing))\b/i.test(text);
+      if (category === 'direct' && /^(?:wrong|incorrect|not correct)$/.test(keyword)) {
+        return hasPreviousAnswerContext
+          || /^(?:wrong|incorrect)[\s,.!?:]*(?:$|answer|response|result|output|again)/i.test(text)
+          || /\b(?:this|that|it)\s+(?:is|'s)\s+(?:wrong|incorrect|not\s+correct)\b/i.test(text);
+      }
+      if (category === 'fix') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      if (category === 'dissatisfaction' && /^(?:issue|problem|error)$/.test(keyword)) {
+        return hasPreviousAnswerContext || /\b(?:still|same)\s+(?:issue|problem|error)\b/i.test(text);
+      }
+
+      if (keyword === 'still') {
+        return /\bstill\s+(?:not|wrong|broken|failing|error|issue|problem|doesn'?t)/i.test(text);
+      }
+      return true;
+    }
+
+    function isLikelyNewRequirement(text) {
+      const lower = String(text || '').toLowerCase();
+      const hasComplaint = /(?:不对|错了|不正确|不是这样|答错|理解错|搞错|还是|仍然|没变化|没做好|不满意|wrong|incorrect|not\s+(?:right|working|correct)|doesn'?t\s+work|still\s+not|my mistake|i was wrong)/i.test(lower);
+      if (hasComplaint) return false;
+
+      const zhRequirement = /(?:请|帮我|需要|实现|新增|添加|优化|支持|创建|设计|开发|完成|需求|功能|页面|接口|文件|模块|把|将)/.test(lower);
+      const enRequirement = /\b(?:please|need|add|create|implement|support|build|design|develop|update|change|fix|check|verify|search|feature|requirement|page|file|module|api|docs?)\b/i.test(lower);
+      return zhRequirement || enRequirement;
+    }
+
+    function matchSelfCorrection(text) {
+      if (!text || typeof text !== 'string') return null;
+      const lower = text.toLowerCase().trim();
+      for (const keyword of [...ERROR_KEYWORDS.selfCorrection.zh, ...ERROR_KEYWORDS.selfCorrection.en]) {
+        if (lower.includes(keyword) || matchesEnglishKeyword(lower, keyword, 'selfCorrection')) {
+          return keyword;
+        }
+      }
+      return null;
+    }
+
+    function computeTextSimilarity(textA, textB) {
+      const wordsA = (textA || '').split(/[\s,，。.！？、\n]+/).filter(w => w.length >= 2);
+      const wordsB = (textB || '').split(/[\s,，。.！？、\n]+/).filter(w => w.length >= 2);
+      if (!wordsA.length || !wordsB.length) return 0;
+      const setA = new Set(wordsA);
+      const intersection = wordsB.filter(w => setA.has(w));
+      return intersection.length / Math.min(wordsA.length, wordsB.length);
+    }
+
+    function matchUserRepeatCue(text) {
+      if (!text || typeof text !== 'string') return null;
+      const lower = text.toLowerCase().trim();
+      for (const keyword of ERROR_KEYWORDS.userRepeat.zh) {
+        if (lower.includes(keyword)) return keyword;
+      }
+      for (const keyword of ERROR_KEYWORDS.userRepeat.en) {
+        if (matchesEnglishKeyword(lower, keyword, 'repeat')) return keyword;
+      }
+      return null;
+    }
+
+    function hasToolFailureOutput(output) {
+      const text = String(output || '').toLowerCase();
+      if (!text) return false;
+      return /(^|\n|\s)(error|failed|failure|exception|traceback|exit code [1-9]\d*)(\b|\s|:)/i.test(text)
+        || /\b(command failed|failed with exit code|cannot find|not found|syntaxerror|typeerror|referenceerror)\b/i.test(text);
+    }
+
+    function buildFlagTooltip(flag) {
+      if (!flag?.isProblematic || !flag.signals?.length) return '';
+      const levelLabel = { error: '错误', warning: '警告', info: '提示' }[flag.level] || '提示';
+      const reasons = flag.signals.map(s => s.detail).join('; ');
+      return `[${levelLabel}] ${reasons}`;
+    }
+
+    function detectErrorSignals(cards) {
+      if (!cards || !cards.length) return;
+      const orderedTurns = flattenTurns(cards);
+
+      for (let ci = 0; ci < cards.length; ci++) {
+        const card = cards[ci];
+        if (!card.turns || !card.turns.length) continue;
+
+        const userTexts = [];
+
+        for (let ti = 0; ti < card.turns.length; ti++) {
+          const turn = card.turns[ti];
+
+          turn.flagged = {
+            isProblematic: false,
+            level: null,
+            confidence: null,
+            signals: [],
+          };
+
+          const currentUserText = getUserTextFromTurn(turn);
+
+          if (!turn.finalText) {
+            if (currentUserText) userTexts.push({ text: currentUserText, turnIndex: ti });
+            continue;
+          }
+
+          const nextUserTurn = findNextUserTurn(orderedTurns, card, ti);
+          if (nextUserTurn) {
+            const userText = getUserTextFromTurn(nextUserTurn);
+            if (userText) {
+              const match = matchDissatisfactionKeywords(userText);
+              if (match) {
+                turn.flagged.isProblematic = true;
+                turn.flagged.signals.push({
+                  type: 'user_dissatisfaction',
+                  detail: `用户下一条消息包含不满关键词: "${match.keyword}"`,
+                  keyword: match.keyword,
+                  category: match.category,
+                  language: match.language,
+                });
+              }
+            }
+          }
+
+          const nextAiTurn = findNextAiTurn(orderedTurns, card, ti);
+          if (nextAiTurn) {
+            const match = matchSelfCorrection(nextAiTurn.finalText || '');
+            if (match) {
+              turn.flagged.isProblematic = true;
+              turn.flagged.signals.push({
+                type: 'ai_self_correction',
+                detail: `后续 AI 主动承认之前回答有问题: "${match}"`,
+                keyword: match,
+              });
+            }
+          }
+
+          for (const tool of (turn.tools || [])) {
+            const state = tool.part?.state || {};
+            if (state.status === 'error' || state.status === 'failed') {
+              turn.flagged.isProblematic = true;
+              turn.flagged.signals.push({
+                type: 'tool_execution_error',
+                detail: `工具 "${tool.part?.tool || 'unknown'}" 执行失败`,
+                keyword: state.status,
+              });
+            }
+            const output = String(state.output || '');
+            if (hasToolFailureOutput(output)) {
+              turn.flagged.isProblematic = true;
+              turn.flagged.signals.push({
+                type: 'tool_execution_error',
+                detail: `工具 "${tool.part?.tool || 'unknown'}" 输出包含错误`,
+                keyword: 'error/failed in output',
+              });
+            }
+          }
+
+          const prevUser = currentUserText ? { text: currentUserText, turnIndex: ti } : userTexts[userTexts.length - 1];
+          if (prevUser) {
+            const nextUserTurn2 = findNextUserTurn(orderedTurns, card, ti);
+            if (nextUserTurn2 && prevUser) {
+              const nextText = getUserTextFromTurn(nextUserTurn2);
+              if (nextText) {
+                const sim = computeTextSimilarity(prevUser.text, nextText);
+                const repeatCue = matchUserRepeatCue(nextText);
+                if (sim > 0.65 || (sim > 0.4 && repeatCue)) {
+                  turn.flagged.isProblematic = true;
+                  turn.flagged.signals.push({
+                    type: 'user_repeat_intent',
+                    detail: `用户重复/重述了同一意图（相似度 ${(sim * 100).toFixed(0)}%${repeatCue ? `，复查提示: ${repeatCue}` : ''}）`,
+                    keyword: repeatCue || `similarity:${sim.toFixed(2)}`,
+                    category: repeatCue ? 'repeat_cue' : 'high_similarity',
+                  });
+                }
+              }
+            }
+          }
+
+          if (currentUserText) userTexts.push({ text: currentUserText, turnIndex: ti });
+        }
+
+        for (const turn of card.turns) {
+          if (!turn.flagged?.isProblematic) continue;
+          const hasHigh = turn.flagged.signals.some(s => {
+            if (s.type === 'tool_execution_error' || s.type === 'ai_self_correction') return true;
+            if (s.type !== 'user_dissatisfaction') return false;
+            return ['direct', 'stillWrong'].includes(s.category)
+              || s.category === 'correctionPhrase'
+              || (s.category === 'dissatisfaction' && !['有问题', 'issue', 'problem', 'error'].includes(s.keyword));
+          });
+          const hasMedium = turn.flagged.signals.some(s => s.type === 'user_repeat_intent');
+
+          if (hasHigh) {
+            turn.flagged.level = 'error';
+            turn.flagged.confidence = 'high';
+          } else if (hasMedium) {
+            turn.flagged.level = 'warning';
+            turn.flagged.confidence = 'medium';
+          } else {
+            turn.flagged.level = 'info';
+            turn.flagged.confidence = 'low';
+          }
+        }
+      }
+    }
+
+    function getUserTextFromTurn(turn) {
+      if (!turn) return '';
+      return turn.userMessages.map(e => e.part?.text || e.part?.state?.output || '').join(' ').trim();
+    }
+
+    function flattenTurns(cards) {
+      const turns = [];
+      for (let ci = 0; ci < cards.length; ci++) {
+        const card = cards[ci];
+        for (let ti = 0; ti < (card.turns || []).length; ti++) {
+          turns.push({ card, cardIndex: ci, turn: card.turns[ti], turnIndex: ti });
+        }
+      }
+      return turns;
+    }
+
+    function findTurnPosition(orderedTurns, card, turnIndex) {
+      return orderedTurns.findIndex((item) => item.card === card && item.turnIndex === turnIndex);
+    }
+
+    function findNextUserTurn(orderedTurns, card, fromIndex) {
+      const start = findTurnPosition(orderedTurns, card, fromIndex);
+      if (start < 0) return null;
+      for (let i = start + 1; i < orderedTurns.length; i++) {
+        if (getUserTextFromTurn(orderedTurns[i].turn)) return orderedTurns[i].turn;
+      }
+      return null;
+    }
+
+    function findNextAiTurn(orderedTurns, card, fromIndex) {
+      const start = findTurnPosition(orderedTurns, card, fromIndex);
+      if (start < 0) return null;
+      for (let i = start + 1; i < orderedTurns.length; i++) {
+        if (orderedTurns[i].turn.finalText) return orderedTurns[i].turn;
+      }
+      return null;
+    }
 
     // 全局 Tooltip 辅助控制逻辑
     let tooltipTimeout = null;
