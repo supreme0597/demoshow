@@ -1218,7 +1218,15 @@
       }
       for (const event of [...(card.tools || []), ...(card.skills || []), ...(card.subagents || [])]) {
         const file = event.part?.state?.input?.filePath || event.part?.state?.metadata?.filepath;
-        if (file) artifacts.push({ file, status: event.part.tool === 'write' ? 'added' : 'modified', patch: '' });
+        if (file) {
+          let status = 'modified';
+          if (event.part.tool === 'write' || event.part.tool === 'write_to_file') {
+            status = 'added';
+          } else if (event.part.tool === 'read' || event.part.tool === 'read_file' || event.part.tool === 'view_file') {
+            status = 'read';
+          }
+          artifacts.push({ file, status, patch: '' });
+        }
       }
       const byKey = new Map();
       for (const artifact of artifacts) {
@@ -1727,7 +1735,12 @@
     function formatTokens(tokens = {}) { return `${compact(tokens.input || 0)} in / ${compact(tokens.output || 0)} out`; }
     function formatSummary(summary = {}) { return `+${summary.additions || 0}/-${summary.deletions || 0} · ${summary.files || 0} files`; }
     function compact(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n); }
-    function artifactIcon(status) { return status === 'added' ? '➕' : status === 'deleted' ? '🗑️' : '✏️'; }
+    function artifactIcon(status) {
+      if (status === 'added') return '➕';
+      if (status === 'deleted') return '🗑️';
+      if (status === 'read') return '📖';
+      return '✏️';
+    }
     function toolIcon(tool) { return ({ skill: '📦', bash: '💻', task: '🤖', todowrite: '✅', write: '✏️', edit: '✏️', read: '📖', glob: '🔍', grep: '🔍' })[tool] || '🛠️'; }
     function shortPath(path) { return String(path || '').split('/').slice(-2).join('/'); }
     function artifactKey(path) {
