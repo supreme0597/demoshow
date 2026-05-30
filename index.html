@@ -676,7 +676,6 @@
           
           const todos = rawTodos.map((todo, idx) => ({ ...todo, index: idx }));
           const fp = contentFingerprint(todos);
-          const title = event.part.state?.title || `${todos.length} todos`;
           
           const lastVer = versions.length > 0 ? versions[versions.length - 1] : null;
           
@@ -685,6 +684,24 @@
             lastVer.todos = todos;
             lastVer.messageIndex = event.messageIndex;
           } else {
+            // NOTE: 智能版本命名算法
+            // 彻底废弃 AI 乱写的 part.state.title。比对新旧版本 todos 的数量差，
+            // 动态生成直观的变更标题，帮助用户一目了然地理解版本演进。
+            let title = '';
+            if (!lastVer) {
+              title = '首次规划';
+            } else {
+              const lastLen = lastVer.todos.length;
+              const curLen = todos.length;
+              if (curLen > lastLen) {
+                title = `新增 ${curLen - lastLen} 个任务`;
+              } else if (curLen < lastLen) {
+                title = `精简 ${lastLen - curLen} 个任务`;
+              } else {
+                title = '调整任务描述';
+              }
+            }
+
             // 内容发生变化 → 创建新版本
             versions.push({
               versionIndex: versions.length,
@@ -1940,24 +1957,58 @@
       }
       
       const firstTurnHtml = renderTurn(card, card.turns[0], 0, card.turns.length);
-      const collapsedTurns = card.turns.slice(1, -1);
-      const lastTurn = card.turns[card.turns.length - 1];
       const lastIndex = card.turns.length - 1;
-      
-      const collapsedHtml = `
-        <details class="turns-collapsed">
-          <summary class="turns-collapsed-summary">
-            ⚙️ 展开/隐藏 ${collapsedTurns.length} 个中间执行回合
-          </summary>
-          <div class="turns-collapsed-content">
-            ${collapsedTurns.map((turn, index) => renderTurn(card, turn, index + 1, card.turns.length)).join('')}
-          </div>
-        </details>
-      `;
-      
-      const lastTurnHtml = renderTurn(card, lastTurn, lastIndex, card.turns.length);
-      
-      return firstTurnHtml + collapsedHtml + lastTurnHtml;
+      const lastTurnHtml = renderTurn(card, card.turns[lastIndex], lastIndex, card.turns.length);
+
+      // NOTE: 关键决策点智能豁免与物理顺序动态切片折叠算法
+      // 遍历中间所有执行回合，如果某回合包含 AI 的阻塞问句（❓）或大型分析详情报告（📄），
+      // 则将其判定为核心决策点，从折叠中予以豁免，在折叠块之外以高亮平铺形式直接向用户展现。
+      // 为保持时序绝对正确，采用多折叠区物理动态分切机制，连续的普通回合会自适应聚合成独立的折叠块。
+      const middleTurns = card.turns.slice(1, -1);
+      const htmlSegments = [];
+      let pendingNormalTurns = [];
+
+      function renderPendingCollapsed() {
+        if (!pendingNormalTurns.length) return '';
+        const count = pendingNormalTurns.length;
+        const html = `
+          <details class="turns-collapsed">
+            <summary class="turns-collapsed-summary">
+              ⚙️ 展开/隐藏 ${count} 个中间执行回合
+            </summary>
+            <div class="turns-collapsed-content">
+              ${pendingNormalTurns.map(item => renderTurn(card, item.turn, item.index, card.turns.length)).join('')}
+            </div>
+          </details>
+        `;
+        pendingNormalTurns = [];
+        return html;
+      }
+
+      for (let i = 0; i < middleTurns.length; i++) {
+        const turn = middleTurns[i];
+        const turnIdx = i + 1;
+
+        // 智能侦测：是否包含阻塞问句、详情报告或 AI 核心最终结论
+        const hasQuestion = turn.finalText && (turn.finalText.includes('？') || turn.finalText.includes('?') || turn.finalText.includes('❓'));
+        const hasDetails = (turn.finalText || '').length > 200 || (turn.finalText || '').includes('查看详情') || (turn.finalText || '').includes('详情报告');
+        const isActionable = hasQuestion || hasDetails;
+
+        if (isActionable) {
+          // 遇到豁免核心回合：先把前面累积的普通回合折叠并推入
+          htmlSegments.push(renderPendingCollapsed());
+          // 紧接着平铺渲染此豁免回合
+          htmlSegments.push(renderTurn(card, turn, turnIdx, card.turns.length));
+        } else {
+          // 普通回合：追加累积等候下一次折叠
+          pendingNormalTurns.push({ turn, index: turnIdx });
+        }
+      }
+
+      // 循环结束后，清空渲染剩余的最后一波累积普通回合
+      htmlSegments.push(renderPendingCollapsed());
+
+      return firstTurnHtml + htmlSegments.filter(Boolean).join('') + lastTurnHtml;
     }
 
     function renderTurn(card, turn, index, totalTurns) {
