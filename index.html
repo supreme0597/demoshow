@@ -693,10 +693,27 @@
           ver.sortedTodos = [...ver.todos].sort(
             (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index
           );
-          const verCards = groupMessagesToCards(timeline, ver.sortedTodos);
-          attachGlobalDiffs(verCards, collectGlobalDiffs(messages));
+          
+          // 截断 timeline 和 messages，只保留至该版本产生为止的历史数据，消除未来时序污染
+          const verTimeline = ver.messageIndex !== undefined 
+            ? timeline.filter(e => e.messageIndex <= ver.messageIndex)
+            : timeline;
+            
+          const verMessages = ver.messageIndex !== undefined
+            ? messages.slice(0, ver.messageIndex + 1)
+            : messages;
+
+          const verCards = groupMessagesToCards(verTimeline, ver.sortedTodos);
+          attachGlobalDiffs(verCards, collectGlobalDiffs(verMessages));
           for (const card of verCards) finalizeCard(card);
           ver.cards = verCards;
+          
+          const verSteps = extractSteps(verMessages);
+          const verPhases = aggregatePhases(verSteps);
+          attachPhaseTodos(verPhases, ver.sortedTodos, verSteps);
+          
+          ver.steps = verSteps;
+          ver.phases = verPhases;
         }
       }
 
@@ -706,10 +723,14 @@
       const activeVer = todoVersions[activeVersionIndex];
       const todos = activeVer ? activeVer.sortedTodos : [];
       const cards = activeVer ? activeVer.cards : fallbackCards(timeline);
+      const activeSteps = activeVer ? activeVer.steps : steps;
+      const activePhases = activeVer ? activeVer.phases : phases;
       
-      attachPhaseTodos(phases, todos, steps);
+      if (!activeVer) {
+        attachPhaseTodos(activePhases, todos, activeSteps);
+      }
 
-      return { session, todoVersions, activeVersionIndex, todos, cards, steps, phases };
+      return { session, todoVersions, activeVersionIndex, todos, cards, steps: activeSteps, phases: activePhases };
     }
 
     /* ========== Step Extraction (uses step-start/step-finish) ========== */
@@ -1570,6 +1591,21 @@
       return '任务待处理';
     }
 
+    window.switchTodoVersion = function(versionIndex) {
+      const idx = parseInt(versionIndex, 10);
+      if (isNaN(idx) || !viewModelCache || !viewModelCache.todoVersions || !viewModelCache.todoVersions[idx]) return;
+      
+      viewModelCache.activeVersionIndex = idx;
+      const ver = viewModelCache.todoVersions[idx];
+      viewModelCache.todos = ver.sortedTodos;
+      viewModelCache.cards = ver.cards;
+      viewModelCache.phases = ver.phases;
+      viewModelCache.steps = ver.steps;
+      
+      // 重新执行渲染刷新
+      renderApp(viewModelCache);
+    };
+
     function extractArtifacts(card) {
       const artifacts = [];
       for (const event of card.rawArtifacts) {
@@ -1610,22 +1646,6 @@
     }
 
     /* ========== Rendering ========== */
-
-    window.switchTodoVersion = function(versionIndex) {
-      const idx = parseInt(versionIndex, 10);
-      if (isNaN(idx) || !viewModelCache || !viewModelCache.todoVersions || !viewModelCache.todoVersions[idx]) return;
-      
-      viewModelCache.activeVersionIndex = idx;
-      const ver = viewModelCache.todoVersions[idx];
-      viewModelCache.todos = ver.sortedTodos;
-      viewModelCache.cards = ver.cards;
-      
-      // 同步刷新 phase 关联的 todo 状态
-      attachPhaseTodos(viewModelCache.phases, ver.sortedTodos, viewModelCache.steps);
-      
-      // 重新执行渲染刷新
-      renderApp(viewModelCache);
-    };
 
     function renderApp(viewModel) {
       viewModelCache = viewModel;
