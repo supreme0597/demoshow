@@ -1180,6 +1180,7 @@
         const parentCard = (parentCards && parentCards.length > 0) ? parentCards[0] : null;
 
         const targetCards = new Set();
+        const developmentTargetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
 
         // NOTE: 检测当前物理消息中是否有实质性的文件修改（patch/diffs）或除 todowrite 之外的工具调用
@@ -1188,23 +1189,10 @@
           e.type === 'diffs' || 
           (e.type === 'tool' && e.part?.tool !== 'todowrite')
         );
+        const isPreambleWindow = initCard && (msgIndex <= firstTodowriteMsgIndex || firstTodowriteMsgIndex === -1);
 
-        // NOTE: 前置调研阶段保护链路
-        // 凡是第一个 todowrite 之前或其本身的消息，且【没有实质性文件开发或工具动作】时，才归属到 initCard 
-        if (initCard && (msgIndex <= firstTodowriteMsgIndex || firstTodowriteMsgIndex === -1) && !hasSubstanceDev) {
-          if (todowriteEvent) {
-            const inputTodos = todowriteEvent.part.state?.input?.todos || [];
-            for (const card of cards) {
-              if (card === initCard) continue;
-              const liveTodo = inputTodos.find((t) => t.content === card.todo.content);
-              if (liveTodo) {
-                card.tempStatus = liveTodo.status;
-              }
-            }
-          }
-          currentCard = initCard;
-          targetCards.add(initCard);
-        } else if (todowriteEvent) {
+        const syncTodoStatuses = () => {
+          if (!todowriteEvent) return;
           const inputTodos = todowriteEvent.part.state?.input?.todos || [];
           for (const card of cards) {
             if (card === initCard) continue;
@@ -1213,22 +1201,44 @@
               card.tempStatus = liveTodo.status;
             }
           }
+        };
+
+        const pickTodowriteCard = () => {
           const activeCard = detectRealFocusCard(todowriteEvent, activeChain, msgIndex, cards) || pickActiveCard(todowriteEvent, cards);
-          currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
-          targetCards.add(currentCard);
-        } else {
+          return activeCard || cards[hasPreEvents ? 1 : 0];
+        };
+
+        const collectDevelopmentTargets = (targetSet, fallbackCard) => {
           for (const event of events) {
             if (event.type === 'tool') {
-              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
-              if (matched) targetCards.add(matched);
+              if (event.part?.tool === 'todowrite') continue;
+              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, fallbackCard || currentCard, parentCard);
+              if (matched) targetSet.add(matched);
             } else if (event.type === 'patch' || event.type === 'diffs') {
               const artifacts = artifactsFromEvent(event);
               for (const art of artifacts) {
-                const matched = matchArtifactToCard(art, cards) || currentCard;
-                if (matched) targetCards.add(matched);
+                const matched = matchArtifactToCard(art, cards) || fallbackCard || currentCard;
+                if (matched) targetSet.add(matched);
               }
             }
           }
+        };
+
+        syncTodoStatuses();
+
+        // NOTE: 前置调研阶段保护链路
+        // 首个 todowrite 即使同消息携带 patch/diffs，也先承载初始化对话；实质开发事件再单独分发到真实任务卡。
+        if (isPreambleWindow && (!hasSubstanceDev || todowriteEvent)) {
+          currentCard = initCard;
+          targetCards.add(initCard);
+          if (todowriteEvent && hasSubstanceDev) {
+            collectDevelopmentTargets(developmentTargetCards, pickTodowriteCard());
+          }
+        } else if (todowriteEvent) {
+          currentCard = pickTodowriteCard();
+          targetCards.add(currentCard);
+        } else {
+          collectDevelopmentTargets(targetCards, currentCard);
         }
 
         if (targetCards.size === 0) {
@@ -1266,6 +1276,7 @@
               if (event.part?.tool === 'todowrite') {
                 // NOTE: todowrite 是系统级的全局看板状态更新工具，不应作为具体卡片的实质执行步骤展示，予以过滤
               } else {
+                if (developmentTargetCards.size && card === initCard) continue;
                 const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
                 if (matched === card) {
                   assignToolToTurn(event, turn);
@@ -1273,6 +1284,7 @@
                 }
               }
             } else if (event.type === 'patch' || event.type === 'diffs') {
+              if (developmentTargetCards.size && card === initCard) continue;
               distributeArtifactEvent(event, cards, card, turn);
               turn.lastEventIndexOfNonText = timeline.indexOf(event);
             }
@@ -1283,9 +1295,30 @@
           }
         }
 
+        for (const card of developmentTargetCards) {
+          const turn = ensureTurn(card, [], null);
+          for (const event of events) {
+            if (event.type === 'tool') {
+              if (event.part?.tool === 'todowrite') continue;
+              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, card, parentCard);
+              if (matched === card) {
+                assignToolToTurn(event, turn);
+                turn.lastEventIndexOfNonText = timeline.indexOf(event);
+              }
+            } else if (event.type === 'patch' || event.type === 'diffs') {
+              distributeArtifactEvent(event, cards, card, turn);
+              turn.lastEventIndexOfNonText = timeline.indexOf(event);
+            }
+          }
+          if (card !== initCard) {
+            currentCard = card;
+          }
+        }
+
         // NOTE: 本次物理消息的所有事件完成分指后，将分指结果缓存，用于其后子消息上溯
-        if (targetCards.size > 0) {
-          messageAssignedCards.set(msgIndex, [...targetCards]);
+        const assignedCards = new Set([...targetCards, ...developmentTargetCards]);
+        if (assignedCards.size > 0) {
+          messageAssignedCards.set(msgIndex, [...assignedCards]);
         }
         pendingUserEvents = [];
       }
