@@ -1628,27 +1628,27 @@
     const ERROR_KEYWORDS = {
       dissatisfaction: {
         zh: {
-          direct: ['不对', '错了', '不对吧', '不对啊', '不是这样', '不正确', '错了吧', '这不对', '有问题'],
-          fix: ['修复', '改一下', '修正', '更正', '重做', '重新来', '调整一下', '改了', '重新做'],
-          dissatisfaction: ['不行', '不满足', '什么情况', '不满意', '不行啊', '没做好'],
-          stillWrong: ['仍然', '还是不对', '还是一样', '没变化', '还是那样', '仍然不对', '还是一样'],
-          but: ['但是', '可是', '然而', '不过'],
+          correctionPhrase: ['不是这个意思', '我不是这个意思', '不是我想要的', '你没按我说的', '你漏了', '你忽略了'],
+          direct: ['不对', '错了', '不对吧', '不对啊', '不是这样', '不正确', '错了吧', '这不对', '答错', '理解错', '搞错'],
+          fix: ['重做', '重新来', '重新做', '修正一下', '更正一下'],
+          dissatisfaction: ['有问题', '不行', '不满足', '不满意', '没做好'],
+          stillWrong: ['仍然不对', '还是不对', '还是一样', '没变化', '还是那样'],
         },
         en: {
+          correctionPhrase: ['not what i asked', 'not what i meant', 'not what i wanted', 'you missed', 'you ignored', "you didn't", 'you did not'],
           direct: ['wrong', 'incorrect', "not right", 'nope', "that's wrong", "that is wrong", "not correct"],
-          fix: ['fix', "fix it", 'correct', 'rework', 'redo', 'change', 'update'],
+          fix: ["fix it", 'rework', 'redo'],
           dissatisfaction: ["not working", "doesn't work", "does not work", 'broken', 'issue', 'problem', 'error'],
           stillWrong: ['still', "still not", "still wrong", "same issue", 'unchanged', "same problem"],
-          but: ['but', 'however', 'actually'],
         }
       },
       selfCorrection: {
-        zh: ['抱歉', '更正一下', '修正', '说错了', '之前说的不对', '让我重新', '刚才不对', '重新考虑'],
-        en: ["i'm sorry", 'i apologize', 'i made a mistake', 'let me correct', 'actually,', "i was wrong", 'let me fix', 'let me reconsider'],
+        zh: ['抱歉', '说错了', '之前说的不对', '刚才不对', '我错了', '我的错'],
+        en: ["i'm sorry", 'i apologize', 'i made a mistake', 'my mistake', "i was wrong", 'i got that wrong'],
       },
       userRepeat: {
-        zh: ['再看看', '检查', '看看', '查一下'],
-        en: ['check', 'verify', 'look again', 'search for'],
+        zh: ['再看看', '再检查一下', '重新检查', '再查一下', '再确认一下', '还是看一下'],
+        en: ['look again', 'check again', 'verify again', 'recheck', 'rerun'],
       }
     };
 
@@ -1658,7 +1658,7 @@
       const { zh, en } = ERROR_KEYWORDS.dissatisfaction;
       for (const [category, patterns] of Object.entries(zh)) {
         for (const keyword of patterns) {
-          if (lower.includes(keyword)) {
+          if (matchesChineseKeyword(lower, keyword, category)) {
             return { keyword, category, language: 'zh' };
           }
         }
@@ -1673,10 +1673,48 @@
       return null;
     }
 
+    function matchesChineseKeyword(text, keyword, category) {
+      if (!text.includes(keyword)) return false;
+      if (category === 'correctionPhrase') return true;
+      if (isLikelyNewRequirement(text)) return false;
+
+      const hasPreviousAnswerContext = /(?:上次|上一|刚才|前面|之前|回复|回答|答案|结果|你给|你写|你做|这个回复|这个回答|这个答案|这段回复|这段回答|这里不对)/.test(text);
+      const hasExplicitWrongContext = /(?:不对|错了|不正确|不是这样|答错|理解错|搞错|还是|仍然|没变化)/.test(text);
+
+      // Plain task requests like "请帮我修复登录问题" should not flag the previous AI answer.
+      if (category === 'fix') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      // "有问题/不行" are often used to describe a new requirement or domain bug; require target context.
+      if (category === 'dissatisfaction') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      return true;
+    }
+
     function matchesEnglishKeyword(text, keyword, category) {
       const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const pattern = new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`, 'i');
       if (!pattern.test(text)) return false;
+      if (category === 'correctionPhrase') return true;
+      if (isLikelyNewRequirement(text)) return false;
+
+      const hasPreviousAnswerContext = /\b(?:your|previous|last|above|earlier|answer|response|result|output|that answer|this answer|that response|this response)\b/i.test(text);
+      const hasExplicitWrongContext = /\b(?:wrong|incorrect|broken|not\s+(?:right|working|correct)|doesn'?t\s+work|still\s+(?:wrong|not|broken|failing))\b/i.test(text);
+      if (category === 'direct' && /^(?:wrong|incorrect|not correct)$/.test(keyword)) {
+        return hasPreviousAnswerContext
+          || /^(?:wrong|incorrect)[\s,.!?:]*(?:$|answer|response|result|output|again)/i.test(text)
+          || /\b(?:this|that|it)\s+(?:is|'s)\s+(?:wrong|incorrect|not\s+correct)\b/i.test(text);
+      }
+      if (category === 'fix') {
+        return hasPreviousAnswerContext || hasExplicitWrongContext;
+      }
+
+      if (category === 'dissatisfaction' && /^(?:issue|problem|error)$/.test(keyword)) {
+        return hasPreviousAnswerContext || /\b(?:still|same)\s+(?:issue|problem|error)\b/i.test(text);
+      }
 
       // Single-word action verbs are common in ordinary follow-up tasks; require complaint context.
       if (category === 'fix' && /^(?:fix|correct|change|update)$/.test(keyword)) {
@@ -1688,11 +1726,21 @@
       return true;
     }
 
+    function isLikelyNewRequirement(text) {
+      const lower = String(text || '').toLowerCase();
+      const hasComplaint = /(?:不对|错了|不正确|不是这样|答错|理解错|搞错|还是|仍然|没变化|没做好|不满意|wrong|incorrect|not\s+(?:right|working|correct)|doesn'?t\s+work|still\s+not|my mistake|i was wrong)/i.test(lower);
+      if (hasComplaint) return false;
+
+      const zhRequirement = /(?:请|帮我|需要|实现|新增|添加|优化|支持|创建|设计|开发|完成|需求|功能|页面|接口|文件|模块|把|将)/.test(lower);
+      const enRequirement = /\b(?:please|need|add|create|implement|support|build|design|develop|update|change|fix|check|verify|search|feature|requirement|page|file|module|api|docs?)\b/i.test(lower);
+      return zhRequirement || enRequirement;
+    }
+
     function matchSelfCorrection(text) {
       if (!text || typeof text !== 'string') return null;
       const lower = text.toLowerCase().trim();
       for (const keyword of [...ERROR_KEYWORDS.selfCorrection.zh, ...ERROR_KEYWORDS.selfCorrection.en]) {
-        if (lower.includes(keyword)) {
+        if (lower.includes(keyword) || matchesEnglishKeyword(lower, keyword, 'selfCorrection')) {
           return keyword;
         }
       }
@@ -1718,6 +1766,13 @@
         if (matchesEnglishKeyword(lower, keyword, 'repeat')) return keyword;
       }
       return null;
+    }
+
+    function hasToolFailureOutput(output) {
+      const text = String(output || '').toLowerCase();
+      if (!text) return false;
+      return /(^|\n|\s)(error|failed|failure|exception|traceback|exit code [1-9]\d*)(\b|\s|:)/i.test(text)
+        || /\b(command failed|failed with exit code|cannot find|not found|syntaxerror|typeerror|referenceerror)\b/i.test(text);
     }
 
     function buildFlagTooltip(flag) {
@@ -1769,15 +1824,17 @@
                   type: 'user_dissatisfaction',
                   detail: `用户下一条消息包含不满关键词: "${match.keyword}"`,
                   keyword: match.keyword,
+                  category: match.category,
+                  language: match.language,
                 });
               }
             }
           }
 
           // --- Signal 2: AI self-correction ---
-          const nextAiTurns = findNextAiTurns(orderedTurns, card, ti);
-          for (const aiTurn of nextAiTurns) {
-            const match = matchSelfCorrection(aiTurn.finalText || '');
+          const nextAiTurn = findNextAiTurn(orderedTurns, card, ti);
+          if (nextAiTurn) {
+            const match = matchSelfCorrection(nextAiTurn.finalText || '');
             if (match) {
               turn.flagged.isProblematic = true;
               turn.flagged.signals.push({
@@ -1785,7 +1842,6 @@
                 detail: `后续 AI 主动承认之前回答有问题: "${match}"`,
                 keyword: match,
               });
-              break;
             }
           }
 
@@ -1801,7 +1857,7 @@
               });
             }
             const output = String(state.output || '');
-            if (output.toLowerCase().includes('error') || output.toLowerCase().includes('failed')) {
+            if (hasToolFailureOutput(output)) {
               turn.flagged.isProblematic = true;
               turn.flagged.signals.push({
                 type: 'tool_execution_error',
@@ -1826,6 +1882,7 @@
                     type: 'user_repeat_intent',
                     detail: `用户重复/重述了同一意图（相似度 ${(sim * 100).toFixed(0)}%${repeatCue ? `，复查提示: ${repeatCue}` : ''}）`,
                     keyword: repeatCue || `similarity:${sim.toFixed(2)}`,
+                    category: repeatCue ? 'repeat_cue' : 'high_similarity',
                   });
                 }
               }
@@ -1838,9 +1895,13 @@
         // --- Aggregate confidence and level ---
         for (const turn of card.turns) {
           if (!turn.flagged?.isProblematic) continue;
-          const hasHigh = turn.flagged.signals.some(s =>
-            ['user_dissatisfaction', 'ai_self_correction', 'tool_execution_error'].includes(s.type)
-          );
+          const hasHigh = turn.flagged.signals.some(s => {
+            if (s.type === 'tool_execution_error' || s.type === 'ai_self_correction') return true;
+            if (s.type !== 'user_dissatisfaction') return false;
+            return ['direct', 'stillWrong'].includes(s.category)
+              || s.category === 'correctionPhrase'
+              || (s.category === 'dissatisfaction' && !['有问题', 'issue', 'problem', 'error'].includes(s.keyword));
+          });
           const hasMedium = turn.flagged.signals.some(s => s.type === 'user_repeat_intent');
 
           if (hasHigh) {
@@ -1886,14 +1947,13 @@
       return null;
     }
 
-    function findNextAiTurns(orderedTurns, card, fromIndex) {
+    function findNextAiTurn(orderedTurns, card, fromIndex) {
       const start = findTurnPosition(orderedTurns, card, fromIndex);
-      if (start < 0) return [];
-      const turns = [];
+      if (start < 0) return null;
       for (let i = start + 1; i < orderedTurns.length; i++) {
-        if (orderedTurns[i].turn.finalText) turns.push(orderedTurns[i].turn);
+        if (orderedTurns[i].turn.finalText) return orderedTurns[i].turn;
       }
-      return turns;
+      return null;
     }
   </script>
 </body>
