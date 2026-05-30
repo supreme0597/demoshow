@@ -1120,9 +1120,10 @@
         card.tempStatus = 'pending';
       }
 
-      // NOTE: 只要 timeline 会话是从最开始（messageIndex 为 0）启动，就无条件创建前置调研卡 initCard
-      const isFromStart = timeline.length > 0 && timeline[0].messageIndex === 0;
-      if (isFromStart) {
+      // NOTE: 只要 timeline 中首个 todowrite 规划卡片之前存在任何交互（firstWriteIdx > 0），就创建前置调研卡 initCard
+      // 哪怕这是个增量/非0启动的非标 session，也能获得完美的前置归宿支持
+      const hasPreDiscussion = firstWriteIdx > 0;
+      if (hasPreDiscussion) {
         hasPreEvents = true;
         initCard = createCard({
           content: "会话初始化与前置调研：明确意图并产出规划",
