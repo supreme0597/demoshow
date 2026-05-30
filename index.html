@@ -1151,6 +1151,8 @@
 
       let currentCard = initCard || cards[0];
       let pendingUserEvents = [];
+      // NOTE: 引入 messageAssignedCards 以记录并缓存每个物理消息最终分指到的卡片集合
+      const messageAssignedCards = new Map();
 
       for (const [msgIndex, events] of messagesGroup.entries()) {
         const isUser = events.some(e => e.role === 'user');
@@ -1159,6 +1161,17 @@
           pendingUserEvents.push(...events.filter(e => e.type === 'text'));
           continue;
         }
+
+        // NOTE: 父子消息拓扑上溯解析
+        // 通过当前 AI 消息的 parentID 字段在 activeChain 中溯源，找到其物理父消息指派的卡片
+        const msg = activeChain[msgIndex];
+        const parentId = msg?.parentID || msg?.info?.parentID;
+        let parentMsgIndex = -1;
+        if (parentId) {
+          parentMsgIndex = activeChain.findIndex(m => (m.id || m.info?.id) === parentId);
+        }
+        const parentCards = parentMsgIndex !== -1 ? messageAssignedCards.get(parentMsgIndex) : null;
+        const parentCard = (parentCards && parentCards.length > 0) ? parentCards[0] : null;
 
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
@@ -1177,7 +1190,7 @@
         } else {
           for (const event of events) {
             if (event.type === 'tool') {
-              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
               if (matched) targetCards.add(matched);
             } else if (event.type === 'patch' || event.type === 'diffs') {
               const artifacts = artifactsFromEvent(event);
@@ -1224,7 +1237,7 @@
               if (event.part?.tool === 'todowrite') {
                 // NOTE: todowrite 是系统级的全局看板状态更新工具，不应作为具体卡片的实质执行步骤展示，予以过滤
               } else {
-                const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+                const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
                 if (matched === card) {
                   assignToolToTurn(event, turn);
                   turn.lastEventIndexOfNonText = timeline.indexOf(event);
@@ -1241,6 +1254,10 @@
           }
         }
 
+        // NOTE: 本次物理消息的所有事件完成分指后，将分指结果缓存，用于其后子消息上溯
+        if (targetCards.size > 0) {
+          messageAssignedCards.set(msgIndex, [...targetCards]);
+        }
         pendingUserEvents = [];
       }
 
@@ -1323,7 +1340,7 @@
       return bestScore >= 2 ? best : null;
     }
 
-    function pickAssignableCard(event, cards, currentCard) {
+    function pickAssignableCard(event, cards, currentCard, parentCard = null) {
       let bestCard = null;
       let highestScore = -0.1;
 
@@ -1353,6 +1370,12 @@
 
         if (baseScore === 0 && card === contextCard) {
           finalScore += 1.0;
+        }
+
+        // NOTE: 父子消息拓扑血缘加权 (Ancestor Weighting)
+        // 若被遍历卡片是触发本回复的用户消息所属卡片，则额外加 5 分锁定其亲缘物理归宿，防漂移
+        if (parentCard && card === parentCard) {
+          finalScore += 5.0;
         }
 
         if (finalScore > highestScore) {
