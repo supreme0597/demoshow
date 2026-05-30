@@ -1313,6 +1313,7 @@
       let best = null;
       let bestScore = 0;
       for (const card of cards) {
+        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         const score = scoreTodoMatch(file, card.todo.content);
         if (score > bestScore) {
           best = card;
@@ -1334,6 +1335,7 @@
       const haystack = eventSearchText(event) || '';
 
       for (const card of cards) {
+        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         let baseScore = scoreTodoMatch(haystack, card.todo.content);
 
         let statusMultiplier = 1.0;
@@ -1382,6 +1384,7 @@
       let best = null;
       let bestScore = 0;
       for (const card of cards) {
+        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         const score = scoreTodoMatch(haystack, card.todo.content);
         if (score > bestScore) {
           best = card;
