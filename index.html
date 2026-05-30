@@ -1154,6 +1154,15 @@
       // NOTE: 引入 messageAssignedCards 以记录并缓存每个物理消息最终分指到的卡片集合
       const messageAssignedCards = new Map();
 
+      // NOTE: 找出第一个包含 todowrite 工具调用的消息的 messageIndex，作为前置调研的完结标志
+      let firstTodowriteMsgIndex = -1;
+      for (const [msgIdx, evts] of messagesGroup.entries()) {
+        if (evts.some(e => e.type === 'tool' && e.part?.tool === 'todowrite')) {
+          firstTodowriteMsgIndex = msgIdx;
+          break;
+        }
+      }
+
       for (const [msgIndex, events] of messagesGroup.entries()) {
         const isUser = events.some(e => e.role === 'user');
         
@@ -1175,7 +1184,23 @@
 
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
-        if (todowriteEvent) {
+
+        // NOTE: 前置调研阶段保护链路
+        // 凡是第一个 todowrite 之前或其本身的消息，均属于会话初始化与前置调研阶段，强归属到 initCard 
+        if (initCard && (msgIndex <= firstTodowriteMsgIndex || firstTodowriteMsgIndex === -1)) {
+          if (todowriteEvent) {
+            const inputTodos = todowriteEvent.part.state?.input?.todos || [];
+            for (const card of cards) {
+              if (card === initCard) continue;
+              const liveTodo = inputTodos.find((t) => t.content === card.todo.content);
+              if (liveTodo) {
+                card.tempStatus = liveTodo.status;
+              }
+            }
+          }
+          currentCard = initCard;
+          targetCards.add(initCard);
+        } else if (todowriteEvent) {
           const inputTodos = todowriteEvent.part.state?.input?.todos || [];
           for (const card of cards) {
             if (card === initCard) continue;
