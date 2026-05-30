@@ -689,19 +689,27 @@
       
       if (todoVersions.length > 0) {
         const order = { completed: 0, in_progress: 1, pending: 2 };
-        for (const ver of todoVersions) {
+        for (let vi = 0; vi < todoVersions.length; vi++) {
+          const ver = todoVersions[vi];
           ver.sortedTodos = [...ver.todos].sort(
             (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index
           );
           
-          // 截断 timeline 和 messages，只保留至该版本产生为止的历史数据，消除未来时序污染
-          const verTimeline = ver.messageIndex !== undefined 
-            ? timeline.filter(e => e.messageIndex <= ver.messageIndex)
-            : timeline;
-            
-          const verMessages = ver.messageIndex !== undefined
-            ? messages.slice(0, ver.messageIndex + 1)
-            : messages;
+          // NOTE: 截断策略：历史版本的 timeline/messages 截断至「下一版本 todowrite 所在消息 -1」。
+          // 最新版本（最后一个）不截断，使用完整数据，确保该版本 todowrite 之后的 AI 总结文本也完整可见。
+          const isLastVersion = vi === todoVersions.length - 1;
+          const nextVer = todoVersions[vi + 1];
+          
+          let verTimeline, verMessages;
+          if (isLastVersion) {
+            verTimeline = timeline;
+            verMessages = messages;
+          } else {
+            // 截断到下一个版本的 todowrite 所在消息前一条（exclusive），保留本版本之后的后续 AI 总结
+            const cutoffMsgIndex = nextVer.messageIndex !== undefined ? nextVer.messageIndex - 1 : ver.messageIndex;
+            verTimeline = timeline.filter(e => e.messageIndex <= cutoffMsgIndex);
+            verMessages = messages.slice(0, cutoffMsgIndex + 1);
+          }
 
           const verCards = groupMessagesToCards(verTimeline, ver.sortedTodos);
           attachGlobalDiffs(verCards, collectGlobalDiffs(verMessages));
