@@ -1641,11 +1641,38 @@
       const created = info.time?.created || 0;
       const updated = info.time?.updated || created;
       const seconds = created && updated ? Math.max(0, Math.round((updated - created) / 1000)) : 0;
+      
+      let versionSelectHtml = '';
+      if (viewModel.todoVersions && viewModel.todoVersions.length > 1) {
+        const options = viewModel.todoVersions.map((ver, idx) => {
+          const isSelected = idx === viewModel.activeVersionIndex ? 'selected' : '';
+          let label = '';
+          if (idx === 0) {
+            label = `V1: 首次规划 (${ver.todos.length}个待办)`;
+          } else if (idx === viewModel.todoVersions.length - 1) {
+            label = `V${idx + 1}: ${ver.title} (最新, ${ver.todos.length}个待办)`;
+          } else {
+            label = `V${idx + 1}: ${ver.title} (${ver.todos.length}个待办)`;
+          }
+          return `<option value="${idx}" ${isSelected}>${escapeHtml(label)}</option>`;
+        }).join('');
+        
+        versionSelectHtml = `
+          <div class="version-switcher">
+            <span class="switcher-label">📅 规划版本:</span>
+            <select class="switcher-select" onchange="switchTodoVersion(this.value)">
+              ${options}
+            </select>
+          </div>
+        `;
+      }
+
       infoBar.innerHTML = `
         <div class="info-bar">
           <div class="info-row">
             <div class="info-title">${escapeHtml(info.title || 'Untitled Session')}</div>
             <div class="info-actions">
+              ${versionSelectHtml}
               <div class="info-meta">${escapeHtml(info.model?.id || info.model?.modelID || 'unknown model')} · ${formatDuration(seconds)} · ${formatTokens(info.tokens)} · ${formatSummary(info.summary)}</div>
               <button class="action-button" type="button" onclick="fileInput.click()">导入 JSON</button>
               <button class="action-button" type="button" onclick="clearCachedSession()">清除</button>
