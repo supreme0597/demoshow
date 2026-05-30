@@ -1611,6 +1611,22 @@
 
     /* ========== Rendering ========== */
 
+    window.switchTodoVersion = function(versionIndex) {
+      const idx = parseInt(versionIndex, 10);
+      if (isNaN(idx) || !viewModelCache || !viewModelCache.todoVersions || !viewModelCache.todoVersions[idx]) return;
+      
+      viewModelCache.activeVersionIndex = idx;
+      const ver = viewModelCache.todoVersions[idx];
+      viewModelCache.todos = ver.sortedTodos;
+      viewModelCache.cards = ver.cards;
+      
+      // 同步刷新 phase 关联的 todo 状态
+      attachPhaseTodos(viewModelCache.phases, ver.sortedTodos, viewModelCache.steps);
+      
+      // 重新执行渲染刷新
+      renderApp(viewModelCache);
+    };
+
     function renderApp(viewModel) {
       viewModelCache = viewModel;
       dropZone.classList.add('hidden');
