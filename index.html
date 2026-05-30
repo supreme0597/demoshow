@@ -892,6 +892,11 @@
 
     function groupMessagesToCards(timeline, todos) {
       if (!todos.length) return fallbackCards(timeline);
+
+      // 为每一个 event 挂载其全局时序索引，方便在其他渲染环节计算事件先后顺序
+      timeline.forEach((event, idx) => {
+        event.globalIndex = idx;
+      });
       
       // 提取物理消息链路 activeChain 用于后续反向侦测
       const activeChain = [];
@@ -1387,9 +1392,33 @@
         }
       }
       const texts = turn.aiTexts.map((event) => partText(event.part)).filter(Boolean);
-      const hasSubsequentAction = turn.lastEventIndexOfNonText > turn.lastEventIndexOfText;
+      
+      // 方案 B：过滤掉只读/命令执行等不影响代码实质变动且不需要重新做总结的工具
+      const hasModifyingAction = [
+        ...(turn.tools || []),
+        ...(turn.skills || []),
+        ...(turn.subagents || []),
+        ...(turn.rawArtifacts || [])
+      ].some(event => {
+        const globalIdx = event.globalIndex;
+        if (globalIdx === undefined || globalIdx <= turn.lastEventIndexOfText) {
+          return false;
+        }
+        
+        // 只要存在 patch 或 diff 变更，判定为实质修改动作
+        if (event.type === 'patch' || event.type === 'diffs') {
+          return true;
+        }
+        
+        const tool = event.part?.tool || '';
+        const isReadOrVerify = ['read', 'read_file', 'view_file', 'bash', 'run_command', 'glob', 'grep'].includes(tool);
+        return !isReadOrVerify;
+      });
+
+      const hasSubsequentAction = hasModifyingAction;
+
       if (hasSubsequentAction && texts.length > 0) {
-        // 文本后还有工具操作 → 文本全部降为过程摘要
+        // 文本后还有修改类工具操作 → 文本全部降为过程摘要
         turn.finalText = inferOutcomeFromTurn(turn, card, isLastTurn);
         turn.processTexts = texts;
       } else {
