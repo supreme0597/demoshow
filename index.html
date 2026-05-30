@@ -1110,6 +1110,7 @@
       }
       
       const firstWriteIdx = timeline.findIndex(e => e.type === 'tool' && e.part?.tool === 'todowrite');
+      const firstWriteMsgIndex = firstWriteIdx >= 0 ? timeline[firstWriteIdx].messageIndex : -1;
       const cards = todos.map((todo, index) => createCard(todo, index));
       
       let initCard = null;
@@ -1160,29 +1161,35 @@
           continue;
         }
 
+        // NOTE: 前置调研卡时空沙箱隔离算法
+        // - 如果当前消息索引已到达或超过首个 todowrite 消息（即正式 TODO 列表已建立），
+        //   则在指派工具/修改等事件时排除 initCard，杜绝其抢占后续正式开发卡片的数据与 turns 轨。
+        // - 如果处于首个 todowrite 之前的早期阶段，则保留 initCard，以便其极其完整地收集前置调研的信息！
+        const isAfterTodoWrite = firstWriteMsgIndex !== -1 && msgIndex >= firstWriteMsgIndex;
+        const matchCards = isAfterTodoWrite ? cards.filter(c => c.index !== -1) : cards;
+
         const targetCards = new Set();
         const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
         if (todowriteEvent) {
           const inputTodos = todowriteEvent.part.state?.input?.todos || [];
-          for (const card of cards) {
-            if (card === initCard) continue;
+          for (const card of matchCards) {
             const liveTodo = inputTodos.find((t) => t.content === card.todo.content);
             if (liveTodo) {
               card.tempStatus = liveTodo.status;
             }
           }
-          const activeCard = detectRealFocusCard(todowriteEvent, activeChain, msgIndex, cards) || pickActiveCard(todowriteEvent, cards);
-          currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
+          const activeCard = detectRealFocusCard(todowriteEvent, activeChain, msgIndex, matchCards) || pickActiveCard(todowriteEvent, matchCards);
+          currentCard = activeCard || matchCards[hasPreEvents ? 1 : 0];
           targetCards.add(currentCard);
         } else {
           for (const event of events) {
             if (event.type === 'tool') {
-              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
+              const matched = matchToolArtifactToCard(event, matchCards) || pickAssignableCard(event, matchCards, currentCard);
               if (matched) targetCards.add(matched);
             } else if (event.type === 'patch' || event.type === 'diffs') {
               const artifacts = artifactsFromEvent(event);
               for (const art of artifacts) {
-                const matched = matchArtifactToCard(art, cards) || currentCard;
+                const matched = matchArtifactToCard(art, matchCards) || currentCard;
                 if (matched) targetCards.add(matched);
               }
             }
@@ -1313,7 +1320,6 @@
       let best = null;
       let bestScore = 0;
       for (const card of cards) {
-        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         const score = scoreTodoMatch(file, card.todo.content);
         if (score > bestScore) {
           best = card;
@@ -1335,7 +1341,6 @@
       const haystack = eventSearchText(event) || '';
 
       for (const card of cards) {
-        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         let baseScore = scoreTodoMatch(haystack, card.todo.content);
 
         let statusMultiplier = 1.0;
@@ -1384,7 +1389,6 @@
       let best = null;
       let bestScore = 0;
       for (const card of cards) {
-        if (card.index === -1) continue; // NOTE: 排除前置调研卡，防范实质文件的分发串卡
         const score = scoreTodoMatch(haystack, card.todo.content);
         if (score > bestScore) {
           best = card;
