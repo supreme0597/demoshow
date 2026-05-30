@@ -621,19 +621,59 @@
 
     /* ========== Parse Session ========== */
 
+    function extractTodoVersions(timeline) {
+      const versions = [];
+      let count = 0;
+      for (const event of timeline) {
+        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
+          const rawTodos = event.part.state?.input?.todos;
+          if (Array.isArray(rawTodos) && rawTodos.length) {
+            count++;
+            const todos = rawTodos.map((todo, idx) => ({ ...todo, index: idx }));
+            const title = event.part.state?.title || `规划版本 V${count}`;
+            versions.push({
+              versionIndex: count - 1,
+              id: `v${count}`,
+              title: title,
+              messageIndex: event.messageIndex,
+              todos: todos
+            });
+          }
+        }
+      }
+      return versions;
+    }
+
     function parseSession(session) {
       const messages = session.messages || [];
       const timeline = buildTimeline(messages);
-      const todos = extractTodos(timeline);
-      const cards = groupMessagesToCards(timeline, todos);
-      attachGlobalDiffs(cards, collectGlobalDiffs(messages));
-      for (const card of cards) finalizeCard(card);
+      
+      const todoVersions = extractTodoVersions(timeline);
+      const activeVersionIndex = todoVersions.length > 0 ? todoVersions.length - 1 : -1;
+      
+      if (todoVersions.length > 0) {
+        const order = { completed: 0, in_progress: 1, pending: 2 };
+        for (const ver of todoVersions) {
+          ver.sortedTodos = [...ver.todos].sort(
+            (a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index
+          );
+          const verCards = groupMessagesToCards(timeline, ver.sortedTodos);
+          attachGlobalDiffs(verCards, collectGlobalDiffs(messages));
+          for (const card of verCards) finalizeCard(card);
+          ver.cards = verCards;
+        }
+      }
 
       const steps = extractSteps(messages);
       const phases = aggregatePhases(steps);
+      
+      const activeVer = todoVersions[activeVersionIndex];
+      const todos = activeVer ? activeVer.sortedTodos : [];
+      const cards = activeVer ? activeVer.cards : fallbackCards(timeline);
+      
       attachPhaseTodos(phases, todos, steps);
 
-      return { session, todos, cards, steps, phases };
+      return { session, todoVersions, activeVersionIndex, todos, cards, steps, phases };
     }
 
     /* ========== Step Extraction (uses step-start/step-finish) ========== */
@@ -804,9 +844,23 @@
     function extractActiveMessageChain(messages) {
       if (!messages || !messages.length) return [];
       const idMap = new Map();
+      
+      let prevMsg = null;
       for (const msg of messages) {
         const id = msg.id || msg.info?.id;
         if (id) idMap.set(id, msg);
+        
+        // 补齐断链：若非第一条 user 消息缺失 parentID，将其隐式链接至前一条消息
+        const parentId = msg.parentID || msg.info?.parentID;
+        if (!parentId && msg !== messages[0] && (msg.info?.role === 'user' || msg.role === 'user')) {
+          if (prevMsg) {
+            const prevId = prevMsg.id || prevMsg.info?.id;
+            if (prevId) {
+              msg.parentID = prevId;
+            }
+          }
+        }
+        prevMsg = msg;
       }
       
       // 1. 逆向回溯，找出链路中所有属于激活状态的 User 消息的 ID
