@@ -660,13 +660,27 @@
     function extractTodoVersions(timeline) {
       const versions = [];
       
-      // NOTE: 版本去重算法
+      // NOTE: 版本去重与增量更新合并算法
       // AI 每次调用 todowrite 都会传入完整的 todo 列表，但多数调用只是更新状态
       // （如 pending → in_progress → completed），todo 的 content 并没有变。
       // 只有当 todo 列表的「内容指纹」（所有 content 排序拼接的 hash）发生变化时，
       // 才认为是一个全新的规划版本。纯状态更新则合并到当前版本（用最新快照覆盖）。
       function contentFingerprint(todos) {
         return todos.map(t => t.content).sort().join('\n');
+      }
+
+      // NOTE: 增量更新合并算法
+      // 在开发过程中，AI 经常会增量追加少数子任务或对描述进行微调，这属于同一任务流的延续。
+      // 如果仅因追加任务就强行割裂出全新版本，会导致看板卡片的执行回合（Turns）被割裂切碎，体验极差。
+      // 只要前后版本的任务内容重合度 >= 80%，就判定为增量微调，合并入当前同一大版本中。
+      function isIncrementalUpdate(prevTodos, nextTodos) {
+        if (!prevTodos || !prevTodos.length) return false;
+        const prevContents = new Set(prevTodos.map(t => t.content));
+        let matchCount = 0;
+        for (const t of nextTodos) {
+          if (prevContents.has(t.content)) matchCount++;
+        }
+        return matchCount >= prevTodos.length * 0.8;
       }
       
       for (const event of timeline) {
@@ -678,11 +692,13 @@
           const fp = contentFingerprint(todos);
           
           const lastVer = versions.length > 0 ? versions[versions.length - 1] : null;
+          const isIncremental = lastVer && isIncrementalUpdate(lastVer.todos, todos);
           
-          if (lastVer && lastVer._fingerprint === fp) {
-            // 内容没变，只是状态更新 → 覆盖最新状态快照，不创建新版本
+          if (lastVer && (lastVer._fingerprint === fp || isIncremental)) {
+            // 内容没变，或仅是增量追加/微调 → 覆盖最新快照，合并为当前版本
             lastVer.todos = todos;
             lastVer.messageIndex = event.messageIndex;
+            lastVer._fingerprint = fp;
           } else {
             // NOTE: 智能版本命名算法
             // 彻底废弃 AI 乱写的 part.state.title。比对新旧版本 todos 的数量差，
@@ -702,7 +718,7 @@
               }
             }
 
-            // 内容发生变化 → 创建新版本
+            // 具有结构性颠覆的变化 → 创建全新规划版本
             versions.push({
               versionIndex: versions.length,
               id: `v${versions.length + 1}`,
@@ -1206,7 +1222,7 @@
           for (const event of events) {
             if (event.type === 'tool') {
               if (event.part?.tool === 'todowrite') {
-                if (card === currentCard) assignToolToTurn(event, turn);
+                // NOTE: todowrite 是系统级的全局看板状态更新工具，不应作为具体卡片的实质执行步骤展示，予以过滤
               } else {
                 const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard);
                 if (matched === card) {
@@ -1279,6 +1295,7 @@
 
     function assignToolToTurn(event, turn) {
       if (!turn) return;
+      if (event.part?.tool === 'todowrite') return; // NOTE: 过滤全局看板管理工具
       if (event.part?.tool === 'skill') turn.skills.push(event);
       else if (event.part?.tool === 'task') turn.subagents.push(event);
       else turn.tools.push(event);
@@ -1989,10 +2006,12 @@
         const turn = middleTurns[i];
         const turnIdx = i + 1;
 
-        // 智能侦测：是否包含阻塞问句、详情报告或 AI 核心最终结论
+        // 智能侦测：是否包含阻塞问句、详情报告、AI 核心最终结论，或含有 Skill 调用
         const hasQuestion = turn.finalText && (turn.finalText.includes('？') || turn.finalText.includes('?') || turn.finalText.includes('❓'));
         const hasDetails = (turn.finalText || '').length > 200 || (turn.finalText || '').includes('查看详情') || (turn.finalText || '').includes('详情报告');
-        const isActionable = hasQuestion || hasDetails;
+        // NOTE: 如果某回合执行了 skill 操作（其自身包含 skills 或 tools 中有 skill 调用），应当从折叠中予以豁免，平铺直显
+        const hasSkills = (turn.skills && turn.skills.length > 0) || (turn.tools && turn.tools.some(t => t.part?.tool === 'skill' || t.tool === 'skill'));
+        const isActionable = hasQuestion || hasDetails || hasSkills;
 
         if (isActionable) {
           // 遇到豁免核心回合：先把前面累积的普通回合折叠并推入
