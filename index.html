@@ -198,14 +198,179 @@
     .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
     .artifact-diff { flex-basis: 100%; width: 100%; }
     .artifact-diff.hidden { display: none; }
-    .trace { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; }
-    .trace > summary { padding: 7px 9px; cursor: pointer; color: var(--text-secondary); font-size: 11px; font-weight: 700; }
-    .trace-content { padding: 0 9px 9px; display: flex; flex-direction: column; gap: 6px; }
-    details.nested summary { cursor: pointer; color: var(--text-secondary); font-size: 10px; }
-    .nested-content { padding: 5px 0 0 10px; color: var(--text-tertiary); font-size: 10px; line-height: 1.55; }
-    .skill-box { margin: 4px 0; padding: 7px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 7px; }
-    .skill-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-primary); font-size: 10px; font-weight: 700; }
-    .skill-meta { margin-top: 4px; color: var(--text-secondary); font-size: 10px; line-height: 1.55; word-break: break-all; }
+    /* 追溯时间线基础结构 */
+    .trace-timeline {
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      border-top: 1px dashed var(--border);
+      padding-top: 8px;
+      min-height: 28px;
+    }
+    .timeline-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      margin-right: 12px;
+      white-space: nowrap;
+    }
+    .timeline-line {
+      position: absolute;
+      left: 54px;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+      z-index: 1;
+      transform: translateY(-50%);
+    }
+    .timeline-nodes {
+      display: flex;
+      gap: 8px;
+      z-index: 2;
+      position: relative;
+    }
+    .timeline-node {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* 节点类型专属边界颜色与图标色 */
+    .timeline-node.chat { border-color: #5856d6; color: #5856d6; }
+    .timeline-node.thought { border-color: #ff9500; color: #ff9500; }
+    .timeline-node.read { border-color: #34c759; color: #34c759; }
+    .timeline-node.write { border-color: #0071e3; color: #0071e3; }
+    .timeline-node.bash { border-color: #8e8e93; color: #8e8e93; }
+    .timeline-node.agent { border-color: #af52de; color: #af52de; }
+    
+    .timeline-node:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    }
+    
+    /* 全局悬浮 Tooltip 样式，直接挂载到 body 下，避免被 card overflow 裁切 */
+    .global-timeline-tooltip {
+      position: fixed;
+      width: 300px;
+      max-height: 220px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      padding: 10px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+    .global-timeline-tooltip.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    
+    .tooltip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .tooltip-title {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tooltip-meta {
+      font-size: 9px;
+      color: var(--text-tertiary);
+    }
+    .tooltip-content {
+      overflow-y: auto;
+      max-height: 140px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border-radius: 6px;
+      padding: 6px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .tooltip-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .tooltip-content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+    
+    /* Skill 及其内嵌 Markdown 排版美化 */
+    .skill-box {
+      margin: 8px 0;
+      padding: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .skill-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--text-primary);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .skill-meta {
+      margin-top: 6px;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      word-break: break-all;
+    }
+    .skill-meta h2, .skill-meta h3, .skill-meta h4 {
+      font-size: 12px;
+      font-weight: 700;
+      margin: 10px 0 4px;
+      color: var(--text-primary);
+    }
+    .skill-meta p {
+      margin-bottom: 6px;
+    }
+    .skill-meta ul {
+      margin-left: 14px;
+      margin-bottom: 6px;
+    }
+    .skill-meta li {
+      margin-bottom: 2px;
+    }
+    .skill-meta code {
+      background: var(--bg-primary);
+      padding: 1px 3px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 9.5px;
+    }
     .skill-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
     .skill-link:hover { text-decoration: underline; }
     pre.diff { margin: 5px 0 0; padding: 7px; max-height: 180px; overflow: auto; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-size: 10px; line-height: 1.35; }
@@ -1506,7 +1671,6 @@
         ${turn.userMessages.length ? turn.userMessages.map((event) => renderUserBubble(partText(event.part))).join('') : ''}
         ${renderTurnProcess(turn)}
         ${renderTurnFinalBubble(card, turn, isLastTurn)}
-        ${renderTurnTraceability(turn)}
       </section>`;
     }
 
@@ -1531,7 +1695,7 @@
       const status = isLastTurn ? card.todo.status : 'in_progress';
       const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
       const className = status === 'in_progress' ? 'progress' : 'result';
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}</div></div>`;
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(turn.finalText)}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
@@ -1560,23 +1724,132 @@
       return turn.processTexts.slice(0, 3).map((text) => `<div class="message-row ai"><div style="width:24px;flex-shrink:0"></div><div class="bubble ai-bubble"><span class="bubble-label">🤖 AI 过程摘要</span>${renderLongText(text)}</div></div>`).join('');
     }
 
-    function renderTraceability(card) {
-      return `<details class="trace"><summary>📋 追溯详情</summary><div class="trace-content">
-        ${renderConversationTrace(card)}
-        ${renderNested('🤔 思考过程', card.reasoning, (event) => renderLongText(partText(event.part)))}
-        ${renderNested('🛠️ 工具调用', card.tools, renderTool)}
-        ${renderNested('🤖 SubAgent', card.subagents, renderTool)}
-      </div></details>`;
+    function renderTurnTraceability(turn) {
+      const nodes = [];
+
+      // 1. 完整对话节点
+      const chatRows = [
+        ...(turn.userMessages || []).map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)) })),
+        ...(turn.aiTexts || []).map((event) => ({ role: 'AI', text: partText(event.part) }))
+      ];
+      if (chatRows.length) {
+        const content = chatRows.map(row => `[${row.role}] ${row.text}`).join('\n\n');
+        nodes.push(`
+          <div class="timeline-node chat" 
+               data-tooltip-title="💬 完整对话" 
+               data-tooltip-meta="${chatRows.length} 条" 
+               data-tooltip-content="${escapeHtml(content)}" 
+               onmouseenter="showTimelineTooltipFromData(this)" 
+               onmouseleave="hideTimelineTooltip()">
+            <span>💬</span>
+          </div>`);
+      }
+
+      // 2. 思考过程节点
+      if (turn.reasoning && turn.reasoning.length) {
+        const thoughtContent = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
+        if (thoughtContent.trim()) {
+          const charCount = thoughtContent.length;
+          nodes.push(`
+            <div class="timeline-node thought" 
+                 data-tooltip-title="🧠 思考过程" 
+                 data-tooltip-meta="${compact(charCount)} 字" 
+                 data-tooltip-content="${escapeHtml(thoughtContent)}" 
+                 onmouseenter="showTimelineTooltipFromData(this)" 
+                 onmouseleave="hideTimelineTooltip()">
+              <span>🧠</span>
+            </div>`);
+        }
+      }
+
+      // 3. 过程消息节点
+      if (turn.processTexts && turn.processTexts.length) {
+        const processContent = turn.processTexts.join('\n\n');
+        nodes.push(`
+          <div class="timeline-node chat" 
+               data-tooltip-title="🤖 过程消息" 
+               data-tooltip-meta="${turn.processTexts.length} 次" 
+               data-tooltip-content="${escapeHtml(processContent)}" 
+               onmouseenter="showTimelineTooltipFromData(this)" 
+               onmouseleave="hideTimelineTooltip()">
+            <span>🤖</span>
+          </div>`);
+      }
+
+      // 4. 普通工具调用节点（过滤排除 skill 后的调用）
+      const normalTools = (turn.tools || []).filter(t => t.part?.tool !== 'skill');
+      for (const toolEvent of normalTools) {
+        const part = toolEvent.part || {};
+        const toolName = part.tool || 'tool';
+        const title = part.state?.title || part.title || part.state?.metadata?.description || part.state?.input?.description || toolName;
+        const output = part.state?.output || part.state?.metadata?.output || '';
+        
+        let classType = 'bash';
+        let icon = '🛠️';
+        if (toolName === 'read' || toolName === 'read_file' || toolName === 'view_file') {
+          classType = 'read';
+          icon = '📖';
+        } else if (toolName === 'write' || toolName === 'write_to_file' || toolName === 'edit' || toolName === 'replace_file_content' || toolName === 'multi_replace_file_content') {
+          classType = 'write';
+          icon = '✏️';
+        } else if (toolName === 'bash' || toolName === 'run_command') {
+          classType = 'bash';
+          icon = '💻';
+        }
+        
+        const tooltipContent = `工具: ${toolName}\n描述: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
+        
+        nodes.push(`
+          <div class="timeline-node ${classType}" 
+               data-tooltip-title="${icon} 工具: ${escapeHtml(toolName)}" 
+               data-tooltip-meta="工具调用" 
+               data-tooltip-content="${escapeHtml(tooltipContent)}" 
+               onmouseenter="showTimelineTooltipFromData(this)" 
+               onmouseleave="hideTimelineTooltip()">
+            <span>${icon}</span>
+          </div>`);
+      }
+
+      // 5. 子代理节点
+      const subagents = turn.subagents || [];
+      for (const agentEvent of subagents) {
+        const part = agentEvent.part || {};
+        const title = part.state?.title || 'subagent';
+        const output = part.state?.output || part.state?.metadata?.output || '';
+        const tooltipContent = `子代理: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
+        nodes.push(`
+          <div class="timeline-node agent" 
+               data-tooltip-title="🤖 子代理: ${escapeHtml(title)}" 
+               data-tooltip-meta="子代理协作" 
+               data-tooltip-content="${escapeHtml(tooltipContent)}" 
+               onmouseenter="showTimelineTooltipFromData(this)" 
+               onmouseleave="hideTimelineTooltip()">
+            <span>🤖</span>
+          </div>`);
+      }
+
+      if (!nodes.length) return '';
+
+      return `
+        <div class="trace-timeline">
+          <span class="timeline-label">操作轨迹</span>
+          <div class="timeline-line"></div>
+          <div class="timeline-nodes">
+            ${nodes.join('')}
+          </div>
+        </div>`;
     }
 
-    function renderTurnTraceability(turn) {
-      return `<details class="trace"><summary>📋 追溯详情</summary><div class="trace-content">
-        ${renderTurnConversationTrace(turn)}
-        ${renderNested('🤖 AI 过程消息', turn.processTexts, (text) => renderLongText(text))}
-        ${renderNested('🤔 思考过程', turn.reasoning, (event) => renderLongText(partText(event.part)))}
-        ${renderNested('🛠️ 工具调用', turn.tools, renderTool)}
-        ${renderNested('🤖 SubAgent', turn.subagents, renderTool)}
-      </div></details>`;
+    function renderTraceability(card) {
+      const dummyTurn = {
+        userMessages: card.userTexts || [],
+        aiTexts: card.aiTexts || [],
+        reasoning: card.reasoning || [],
+        tools: card.tools || [],
+        subagents: card.subagents || [],
+        processTexts: []
+      };
+      return renderTurnTraceability(dummyTurn);
     }
 
     function renderSkillsOnBubble(skills) {
@@ -1781,6 +2054,94 @@
     }
     function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
     function escapeAttr(value) { return escapeHtml(value).replace(/\n/g, '&#10;'); }
+
+    // 全局 Tooltip 辅助控制逻辑
+    let tooltipTimeout = null;
+
+    function showTimelineTooltip(element, title, meta, content) {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+      }
+      
+      let tooltip = document.getElementById('global-timeline-tooltip');
+      if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'global-timeline-tooltip';
+        tooltip.className = 'global-timeline-tooltip';
+        tooltip.innerHTML = `
+          <div class="tooltip-header">
+            <span id="global-tooltip-title" class="tooltip-title"></span>
+            <span id="global-tooltip-meta" class="tooltip-meta"></span>
+          </div>
+          <div id="global-tooltip-content" class="tooltip-content"></div>
+        `;
+        document.body.appendChild(tooltip);
+      }
+
+      const titleEl = document.getElementById('global-tooltip-title');
+      const metaEl = document.getElementById('global-tooltip-meta');
+      const contentEl = document.getElementById('global-tooltip-content');
+
+      titleEl.textContent = title;
+      metaEl.textContent = meta;
+      contentEl.textContent = content;
+
+      tooltip.style.display = 'flex';
+      tooltip.style.visibility = 'hidden';
+      tooltip.classList.add('visible');
+      
+      const rect = element.getBoundingClientRect();
+      const tooltipWidth = tooltip.offsetWidth || 300;
+      const tooltipHeight = tooltip.offsetHeight || 150;
+
+      // 默认在节点上方居中弹出
+      let left = rect.left + (rect.width - tooltipWidth) / 2;
+      let top = rect.top - tooltipHeight - 8;
+
+      // 防止左右溢出屏幕可视区域
+      if (left < 12) {
+        left = 12;
+      } else if (left + tooltipWidth > window.innerWidth - 12) {
+        left = window.innerWidth - tooltipWidth - 12;
+      }
+
+      // 防止冲顶裁剪，如果上方空间不足则向下弹出
+      if (top < 12) {
+        top = rect.bottom + 8;
+      }
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+      tooltip.style.visibility = 'visible';
+
+      tooltip.onmouseenter = () => {
+        if (tooltipTimeout) {
+          clearTimeout(tooltipTimeout);
+          tooltipTimeout = null;
+        }
+      };
+      tooltip.onmouseleave = () => {
+        hideTimelineTooltip();
+      };
+    }
+
+    function showTimelineTooltipFromData(element) {
+      const title = element.getAttribute('data-tooltip-title') || '';
+      const meta = element.getAttribute('data-tooltip-meta') || '';
+      const content = element.getAttribute('data-tooltip-content') || '';
+      showTimelineTooltip(element, title, meta, content);
+    }
+
+    function hideTimelineTooltip() {
+      tooltipTimeout = setTimeout(() => {
+        const tooltip = document.getElementById('global-timeline-tooltip');
+        if (tooltip) {
+          tooltip.classList.remove('visible');
+          tooltip.style.visibility = 'hidden';
+        }
+      }, 120);
+    }
   </script>
 </body>
 </html>
