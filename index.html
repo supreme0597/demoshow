@@ -1413,6 +1413,13 @@
       return bits.filter(Boolean).map(s => String(s).slice(0, 300)).join(' ').toLowerCase();
     }
 
+    // NOTE: 中英文高频通用噪音词（停用词）词典
+    // 这些高频无特异特征的词汇会无差别出现在大多数任务描述中，必须进行哈希过滤，以确保实质特征特征词的高加分特异性
+    const STOP_WORDS = new Set([
+      '实现', '功能', '参考', '分析', '进行', '完成', '任务', '支持', '优化', '修改', '修复', '调整', '处理', '会话', '过程',
+      'implement', 'feature', 'reference', 'analyze', 'process', 'complete', 'task', 'support', 'optimize', 'modify', 'fix', 'adjust', 'handle', 'todo', 'write', 'read'
+    ]);
+
     function scoreTodoMatch(haystack, todoContent) {
       const todo = String(todoContent || '').toLowerCase();
       let score = 0;
@@ -1430,9 +1437,11 @@
       for (const [needle, terms] of rules) {
         if (todo.includes(needle) && terms.some((term) => haystack.includes(term))) score += 4;
       }
-      // NOTE: 中英双语兼容的分词匹配算法
-      // 允许中文字词（长度 >= 2）与英文单词（长度 >= 4）同时参与评分，彻底解决中文被纯英文正则屏蔽切碎的问题
+      // NOTE: 中英双语兼容的分词匹配算法（含高频噪音词 Set 强力排雷）
+      // 允许中文字词（长度 >= 2）与英文单词（长度 >= 4）同时参与评分，且彻底哈希滤除无差别高频通用噪音词
       const tokens = todo.split(/[^a-z0-9\u4e00-\u9fa5_.-]+/i).filter((token) => {
+        const cleanToken = token.toLowerCase();
+        if (STOP_WORDS.has(cleanToken)) return false; // NOTE: 过滤高频通用噪音词
         return /[\u4e00-\u9fa5]/.test(token) ? token.length >= 2 : token.length >= 4;
       });
       for (const token of tokens) {
