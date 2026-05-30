@@ -581,9 +581,42 @@
 
     /* ========== Existing Parse Helpers ========== */
 
+    function extractActiveMessageChain(messages) {
+      if (!messages || !messages.length) return [];
+      const idMap = new Map();
+      for (const msg of messages) {
+        const id = msg.id || msg.info?.id;
+        if (id) idMap.set(id, msg);
+      }
+      
+      // 1. 逆向回溯，找出链路中所有属于激活状态的 User 消息的 ID
+      const activeUserIds = new Set();
+      let current = messages[messages.length - 1];
+      while (current) {
+        const role = current.info?.role || current.role || 'unknown';
+        if (role === 'user') {
+          const id = current.id || current.info?.id;
+          if (id) activeUserIds.add(id);
+        }
+        const parentId = current.parentID || current.info?.parentID;
+        current = parentId ? idMap.get(parentId) : null;
+      }
+
+      // 2. 过滤消息：保留激活的 User 消息，以及其 parentID 存在于激活 User 消息集中的所有 AI 消息
+      return messages.filter((msg) => {
+        const id = msg.id || msg.info?.id;
+        if (msg.info?.role === 'user' || msg.role === 'user') {
+          return activeUserIds.has(id);
+        }
+        const parentId = msg.parentID || msg.info?.parentID;
+        return activeUserIds.has(parentId);
+      });
+    }
+
     function buildTimeline(messages) {
       const events = [];
-      for (const [messageIndex, message] of messages.entries()) {
+      const activeChain = extractActiveMessageChain(messages);
+      for (const [messageIndex, message] of activeChain.entries()) {
         const role = message.info?.role || 'unknown';
         const time = message.info?.time?.created || message.info?.time?.completed || 0;
         for (const [partIndex, part] of (message.parts || []).entries()) {
@@ -606,8 +639,47 @@
       return snapshot.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.index - b.index);
     }
 
+    function detectRealFocusCard(todowriteEvent, activeChain, currentMsgIndex, cards) {
+      const inputTodos = todowriteEvent.part.state?.input?.todos || [];
+      const candidateCards = cards.filter(c => {
+        const live = inputTodos.find(t => t.content === c.todo.content);
+        return live && live.status === 'in_progress';
+      });
+
+      if (candidateCards.length <= 1) {
+        return candidateCards[0] || null;
+      }
+
+      for (let i = currentMsgIndex + 1; i < activeChain.length; i++) {
+        const nextMsg = activeChain[i];
+        const parts = nextMsg.parts || [];
+        for (const part of parts) {
+          if (part.type === 'patch' || part.type === 'diffs') {
+            const filePath = part.filePath || part.state?.input?.filePath || '';
+            if (filePath) {
+              const matchedCard = candidateCards.find(c => {
+                const todoContent = c.todo.content.toLowerCase();
+                const fileBasename = filePath.split('/').pop().toLowerCase();
+                return todoContent.includes(fileBasename);
+              });
+              if (matchedCard) return matchedCard;
+            }
+          }
+        }
+      }
+      return candidateCards[0] || null;
+    }
+
     function groupMessagesToCards(timeline, todos) {
       if (!todos.length) return fallbackCards(timeline);
+      
+      // 提取物理消息链路 activeChain 用于后续反向侦测
+      const activeChain = [];
+      for (const event of timeline) {
+        if (event.message && !activeChain.includes(event.message)) {
+          activeChain.push(event.message);
+        }
+      }
       
       const firstWriteIdx = timeline.findIndex(e => e.type === 'tool' && e.part?.tool === 'todowrite');
       const cards = todos.map((todo, index) => createCard(todo, index));
@@ -669,7 +741,7 @@
               card.tempStatus = liveTodo.status;
             }
           }
-          const activeCard = pickActiveCard(todowriteEvent, cards);
+          const activeCard = detectRealFocusCard(todowriteEvent, activeChain, msgIndex, cards) || pickActiveCard(todowriteEvent, cards);
           currentCard = activeCard || cards[hasPreEvents ? 1 : 0];
           targetCards.add(currentCard);
         } else {
@@ -692,7 +764,13 @@
           const fallback = (currentCard && currentCard.tempStatus === 'in_progress')
             ? currentCard
             : cards.find(c => c.tempStatus === 'in_progress') || currentCard;
-          targetCards.add(fallback);
+          
+          if (fallback && fallback.tempStatus === 'completed') {
+            const activeCard = cards.find(c => c.tempStatus === 'in_progress') || cards.find(c => c.tempStatus === 'pending');
+            if (activeCard) targetCards.add(activeCard);
+          } else if (fallback) {
+            targetCards.add(fallback);
+          }
         }
 
         const textEvents = events.filter(e => e.type === 'text' && e.role === 'assistant');
