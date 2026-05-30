@@ -1669,7 +1669,6 @@
         <div class="artifact-title">Turn ${index + 1}</div>
         ${goalHtml}
         ${turn.userMessages.length ? turn.userMessages.map((event) => renderUserBubble(partText(event.part))).join('') : ''}
-        ${renderTurnProcess(turn)}
         ${renderTurnFinalBubble(card, turn, isLastTurn)}
       </section>`;
     }
