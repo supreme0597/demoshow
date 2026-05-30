@@ -1859,12 +1859,15 @@
         const file = event.part?.state?.input?.filePath || event.part?.state?.metadata?.filepath;
         if (file) {
           let status = 'modified';
+          let patch = '';
           if (event.part.tool === 'write' || event.part.tool === 'write_to_file') {
             status = 'added';
+            patch = event.part?.state?.input?.content || '';
           } else if (event.part.tool === 'read' || event.part.tool === 'read_file' || event.part.tool === 'view_file') {
             status = 'read';
+            patch = event.part?.state?.output || '';
           }
-          artifacts.push({ file, status, patch: '' });
+          artifacts.push({ file, status, patch });
         }
       }
       const byKey = new Map();
