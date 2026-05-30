@@ -659,20 +659,40 @@
 
     function extractTodoVersions(timeline) {
       const versions = [];
-      let count = 0;
+      
+      // NOTE: 版本去重算法
+      // AI 每次调用 todowrite 都会传入完整的 todo 列表，但多数调用只是更新状态
+      // （如 pending → in_progress → completed），todo 的 content 并没有变。
+      // 只有当 todo 列表的「内容指纹」（所有 content 排序拼接的 hash）发生变化时，
+      // 才认为是一个全新的规划版本。纯状态更新则合并到当前版本（用最新快照覆盖）。
+      function contentFingerprint(todos) {
+        return todos.map(t => t.content).sort().join('\n');
+      }
+      
       for (const event of timeline) {
         if (event.type === 'tool' && event.part?.tool === 'todowrite') {
           const rawTodos = event.part.state?.input?.todos;
-          if (Array.isArray(rawTodos) && rawTodos.length) {
-            count++;
-            const todos = rawTodos.map((todo, idx) => ({ ...todo, index: idx }));
-            const title = event.part.state?.title || `规划版本 V${count}`;
+          if (!Array.isArray(rawTodos) || !rawTodos.length) continue;
+          
+          const todos = rawTodos.map((todo, idx) => ({ ...todo, index: idx }));
+          const fp = contentFingerprint(todos);
+          const title = event.part.state?.title || `${todos.length} todos`;
+          
+          const lastVer = versions.length > 0 ? versions[versions.length - 1] : null;
+          
+          if (lastVer && lastVer._fingerprint === fp) {
+            // 内容没变，只是状态更新 → 覆盖最新状态快照，不创建新版本
+            lastVer.todos = todos;
+            lastVer.messageIndex = event.messageIndex;
+          } else {
+            // 内容发生变化 → 创建新版本
             versions.push({
-              versionIndex: count - 1,
-              id: `v${count}`,
+              versionIndex: versions.length,
+              id: `v${versions.length + 1}`,
               title: title,
               messageIndex: event.messageIndex,
-              todos: todos
+              todos: todos,
+              _fingerprint: fp
             });
           }
         }
