@@ -685,7 +685,7 @@
       const timeline = buildTimeline(messages);
       
       const todoVersions = extractTodoVersions(timeline);
-      const activeVersionIndex = todoVersions.length > 0 ? todoVersions.length - 1 : -1;
+      const activeVersionIndex = todoVersions.length > 0 ? 0 : -1;
       
       if (todoVersions.length > 0) {
         const order = { completed: 0, in_progress: 1, pending: 2 };
