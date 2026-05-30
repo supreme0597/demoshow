@@ -891,12 +891,12 @@
     }
 
     function groupMessagesToCards(timeline, todos) {
-      if (!todos.length) return fallbackCards(timeline);
-
       // 为每一个 event 挂载其全局时序索引，方便在其他渲染环节计算事件先后顺序
       timeline.forEach((event, idx) => {
         event.globalIndex = idx;
       });
+
+      if (!todos.length) return fallbackCards(timeline);
       
       // 提取物理消息链路 activeChain 用于后续反向侦测
       const activeChain = [];
