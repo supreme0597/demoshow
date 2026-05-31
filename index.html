@@ -2358,7 +2358,10 @@
       selectTaskCard(index);
     };
 
-    function isPureProcessTurn(turn) {
+    function isPureProcessTurn(turn, index = null) {
+      // 0. 任务开篇保护：卡片的第一个 Turn 包含“任务目标”（GoalHtml）与开篇意图，绝对不能作为纯过程折叠隐藏
+      if (index === 0) return false;
+
       // 1. 用户输入交互：核心决策，必须保留气泡
       if (turn.userMessages && turn.userMessages.length > 0) return false;
       
@@ -2436,7 +2439,7 @@
       };
       
       card.turns.forEach((turn, idx) => {
-        if (isPureProcessTurn(turn)) {
+        if (isPureProcessTurn(turn, idx)) {
           pendingProcessTurns.push({ turn, index: idx });
         } else {
           flushProcessTurns();
