@@ -1465,8 +1465,9 @@
         const target = matchArtifactToCard(artifact, cards) || fallbackCard;
         if (target) {
           target.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
-          const turn = target === fallbackCard ? fallbackTurn : null;
-          if (turn) turn.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
+          // NOTE: 无论 matchArtifactToCard 是否找到了特定卡片，都将制品推入当前 turn 的 rawArtifacts
+          // 修复：原逻辑仅在 target===fallbackCard 时才推入 turn，导致同文件第二次操作的制品丢失位置
+          if (fallbackTurn) fallbackTurn.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
         }
       }
     }
@@ -1950,7 +1951,8 @@
         const existing = byKey.get(key);
         if (!existing) {
           byKey.set(key, artifact);
-        } else if ((existing.weak && !artifact.weak) || (!existing.patch && artifact.patch)) {
+        } else if ((existing.weak && !artifact.weak) || (!existing.patch && artifact.patch) || (artifact.patch && !artifact.weak)) {
+          // NOTE: 同文件多次操作时，保留最新一次有 patch 的制品（后来的操作是更新版本）
           byKey.set(key, artifact);
         }
       }
