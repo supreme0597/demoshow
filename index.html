@@ -667,6 +667,7 @@
     let currentView = 'task';
     let viewModelCache = null;
     let selectedCardIndex = 0;
+    let projectRootPrefix = '';
 
     dropZone.addEventListener('dragover', (event) => {
       event.preventDefault();
@@ -816,10 +817,62 @@
       return versions;
     }
 
+    /**
+     * 自动探测项目根路径绝对前缀
+     * 通过比较 timeline 中的工具绝对路径与全局 diff 的相对路径的后缀，动态推导绝对路径的项目根路径前缀
+     */
+    function detectProjectRootPrefix(timeline, messages) {
+      const absPaths = [];
+      const relPaths = [];
+
+      timeline.forEach(evt => {
+        const file = evt.part?.state?.input?.filePath || evt.part?.state?.metadata?.filepath;
+        if (file && (file.startsWith('/') || file.includes(':'))) {
+          absPaths.push(file.replace(/\\/g, '/'));
+        }
+      });
+
+      messages.forEach(msg => {
+        const diffs = msg.info?.summary?.diffs || [];
+        diffs.forEach(d => {
+          if (d.file && !d.file.startsWith('/') && !d.file.includes(':')) {
+            relPaths.push(d.file.replace(/\\/g, '/'));
+          }
+        });
+      });
+
+      for (const abs of absPaths) {
+        const absLower = abs.toLowerCase();
+        for (const rel of relPaths) {
+          const relLower = rel.toLowerCase();
+          if (absLower.endsWith('/' + relLower)) {
+            const prefixLen = abs.length - rel.length;
+            return abs.substring(0, prefixLen).toLowerCase();
+          }
+        }
+      }
+
+      // 兜底策略：从绝对路径中截取到常见项目文件夹之后的部分
+      if (absPaths.length > 0) {
+        const firstAbs = absPaths[0];
+        const patterns = ['/openspec/', '/docs/', '/src/', '/tests/'];
+        for (const pat of patterns) {
+          const idx = firstAbs.toLowerCase().indexOf(pat);
+          if (idx !== -1) {
+            return firstAbs.substring(0, idx + 1).toLowerCase();
+          }
+        }
+      }
+      return '';
+    }
+
     function parseSession(session) {
       const messages = session.messages || [];
       const activeChain = extractActiveMessageChain(messages);
       const timeline = buildTimeline(messages);
+      
+      // 动态探测并赋值绝对路径前缀，供归一化 key 比对使用
+      projectRootPrefix = detectProjectRootPrefix(timeline, activeChain);
       
       const todoVersions = extractTodoVersions(timeline);
       const activeVersionIndex = todoVersions.length > 0 ? 0 : -1;
@@ -2975,11 +3028,17 @@
     function toolIcon(tool) { return ({ skill: '📦', bash: '💻', task: '🤖', todowrite: '✅', write: '✏️', edit: '✏️', read: '📖', glob: '🔍', grep: '🔍' })[tool] || '🛠️'; }
     function shortPath(path) { return String(path || '').split('/').slice(-2).join('/'); }
     function artifactKey(path) {
-      const normalized = String(path || '').replace(/\\/g, '/');
-      if (normalized.startsWith('openspec/')) return normalized;
+      if (!path) return '';
+      let clean = String(path).replace(/\\/g, '/').toLowerCase();
+      // 自动截去动态测得的项目绝对路径前缀，完成相对化归一
+      if (projectRootPrefix && clean.startsWith(projectRootPrefix)) {
+        clean = clean.substring(projectRootPrefix.length);
+      }
       const marker = '/openspec/';
-      if (normalized.includes(marker)) return 'openspec/' + normalized.split(marker).pop();
-      return normalized.split('/').slice(-3).join('/');
+      if (clean.includes(marker)) {
+        return 'openspec/' + clean.split(marker).pop();
+      }
+      return clean;
     }
     // NOTE: 智能提取交互工具反馈 output 中等号 "=" 后面的真实用户答案，剥离提问与系统格式。完美支持多等号（多提问）边界。
     function getCleanUserAnswer(out) {
