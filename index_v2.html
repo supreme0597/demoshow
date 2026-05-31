@@ -1907,6 +1907,35 @@
         `;
       }
 
+      // NOTE: 提取交互式工具中的用户反馈，并像真正的 Dev Input 一样，渲染右侧高贵的 Dev 反馈气泡
+      let interactiveUserBubbleHtml = '';
+      const interactiveTools = turn.tools.filter(t => {
+        const name = t.part?.tool || 'unknown';
+        return name === 'ask_user_question' || name === 'question' || name.includes('ask_question') || name.includes('ask_permission');
+      });
+      
+      interactiveTools.forEach(t => {
+        const out = t.part?.state?.output || '';
+        if (out) {
+          let cleanAnswer = out.replace(/^User has answered your questions:\s*/i, '');
+          if (cleanAnswer.toLowerCase().includes('approved') || cleanAnswer.toLowerCase().includes('authorized')) {
+            cleanAnswer = '🟢 [授权核准] 已批准并授权模型继续执行该安全操作。';
+          }
+          
+          interactiveUserBubbleHtml += `
+            <div class="message-row user" style="margin-top: 12px;">
+              <div class="bubble user-bubble">
+                <span class="bubble-label">Dev Feedback</span>
+                <div>${escapeHtml(cleanAnswer)}</div>
+              </div>
+              <div class="avatar user-avatar">Dev</div>
+            </div>
+          `;
+        }
+      });
+      
+      html += interactiveUserBubbleHtml;
+
       return `<div class="turn-block" id="${turn.id}">${html}</div>`;
     }
 
@@ -2266,6 +2295,35 @@
             </div>
           `;
         }
+
+        // NOTE: 智能寻找在这个 AI Turn 里有没有交互反馈的 output，如果有，顺次渲染一个 Dev 靠右消息气泡
+        let feedbackBubbles = '';
+        const interactiveEvents = events.filter(e => {
+          if (e.type !== 'tool') return false;
+          const toolName = e.part?.tool || 'unknown';
+          return toolName === 'ask_user_question' || toolName === 'question' || toolName.includes('ask_question') || toolName.includes('ask_permission');
+        });
+        
+        interactiveEvents.forEach(evt => {
+          const out = evt.part?.state?.output || '';
+          if (out) {
+            let cleanAnswer = out.replace(/^User has answered your questions:\s*/i, '');
+            if (cleanAnswer.toLowerCase().includes('approved') || cleanAnswer.toLowerCase().includes('authorized')) {
+              cleanAnswer = '🟢 [授权核准] 已批准并授权模型继续执行该安全操作。';
+            }
+            feedbackBubbles += `
+              <div class="message-row user" style="margin-top: 12px; width: 100%; margin-bottom: 0;">
+                <div class="bubble user-bubble" style="max-width: 90%; font-size:13px; line-height:1.6; border-radius: 14px 14px 2px 14px; box-shadow: 0 4px 15px rgba(99,102,241,0.15);">
+                  <span class="bubble-label" style="font-size:9px; color:#a5b4fc; letter-spacing:0.04em;">Dev Feedback</span>
+                  <div style="color:var(--text-primary);">${escapeHtml(cleanAnswer)}</div>
+                </div>
+                <div class="avatar user-avatar" style="width:28px; height:28px; font-size:9px; margin-left:10px;">Dev</div>
+              </div>
+            `;
+          }
+        });
+        
+        turnBubbleHtml += feedbackBubbles;
 
         auditNodesHtml += `
           <div class="audit-node ${roleClass}">
