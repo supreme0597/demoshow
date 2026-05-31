@@ -2633,14 +2633,22 @@
         ...(turn.aiTexts || []).map((event) => ({ role: 'AI', text: partText(event.part) }))
       ];
       if (chatRows.length) {
-        const content = chatRows.map(row => `[${row.role}] ${row.text}`).join('\n\n');
+        const content = chatRows.map(row => `### 💬 [${row.role}]\n${row.text}`).join('\n\n');
+        const tooltipContent = chatRows.map(row => `[${row.role}] ${row.text}`).join('\n\n');
+        const detailId = registerDetailPayload({
+          title: '💬 完整对话详情',
+          html: `<div style="padding:4px; line-height:1.65;">${renderMarkdown(content)}</div>`,
+          kind: 'chat'
+        });
         nodes.push(`
           <div class="timeline-node chat" 
+               style="cursor:pointer;"
                data-tooltip-title="💬 完整对话" 
                data-tooltip-meta="${chatRows.length} 条" 
-               data-tooltip-content="${escapeHtml(content)}" 
+               data-tooltip-content="${escapeHtml(tooltipContent)}" 
                onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()">
+               onmouseleave="hideTimelineTooltip()"
+               onclick="openRegisteredDetail('${detailId}', this)">
             <span>💬</span>
           </div>`);
       }
@@ -2650,13 +2658,20 @@
         const thoughtContent = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
         if (thoughtContent.trim()) {
           const charCount = thoughtContent.length;
+          const detailId = registerDetailPayload({
+            title: '🧠 思考过程详情',
+            html: `<div style="padding:4px; line-height:1.65; white-space:pre-wrap;">${renderMarkdown(thoughtContent)}</div>`,
+            kind: 'thought'
+          });
           nodes.push(`
             <div class="timeline-node thought" 
+                 style="cursor:pointer;"
                  data-tooltip-title="🧠 思考过程" 
                  data-tooltip-meta="${compact(charCount)} 字" 
                  data-tooltip-content="${escapeHtml(thoughtContent)}" 
                  onmouseenter="showTimelineTooltipFromData(this)" 
-                 onmouseleave="hideTimelineTooltip()">
+                 onmouseleave="hideTimelineTooltip()"
+                 onclick="openRegisteredDetail('${detailId}', this)">
               <span>🧠</span>
             </div>`);
         }
@@ -2665,13 +2680,20 @@
       // 3. 过程消息节点
       if (turn.processTexts && turn.processTexts.length) {
         const processContent = turn.processTexts.join('\n\n');
+        const detailId = registerDetailPayload({
+          title: '🤖 过程消息详情',
+          html: `<div style="padding:4px; line-height:1.65; white-space:pre-wrap;">${renderMarkdown(processContent)}</div>`,
+          kind: 'process'
+        });
         nodes.push(`
           <div class="timeline-node chat" 
+               style="cursor:pointer;"
                data-tooltip-title="🤖 过程消息" 
                data-tooltip-meta="${turn.processTexts.length} 次" 
                data-tooltip-content="${escapeHtml(processContent)}" 
                onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()">
+               onmouseleave="hideTimelineTooltip()"
+               onclick="openRegisteredDetail('${detailId}', this)">
             <span>🤖</span>
           </div>`);
       }
@@ -2681,6 +2703,14 @@
       for (const toolEvent of normalTools) {
         const part = toolEvent.part || {};
         const toolName = part.tool || 'tool';
+        
+        // 过滤只读监控诊断型命令 (如 tail, cat, ls, ps, grep, echo, pwd, cd)
+        if (toolName === 'bash' || toolName === 'run_command') {
+          const cmd = part.state?.input?.command || part.state?.input?.CommandLine || part.state?.input?.CommandLineString || '';
+          const isReadOnlyCmd = /^(tail|cat|ls|ps|grep|echo|pwd|cd)\b/.test(cmd.trim());
+          if (isReadOnlyCmd) continue; // 探针型诊断指令不作为操作轨迹节点展示
+        }
+        
         const title = part.state?.title || part.title || part.state?.metadata?.description || part.state?.input?.description || toolName;
         const output = part.state?.output || part.state?.metadata?.output || '';
         
@@ -2699,13 +2729,31 @@
         
         const tooltipContent = `工具: ${toolName}\n描述: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
         
+        const cmd = part.state?.input?.command || part.state?.input?.CommandLine || part.state?.input?.CommandLineString || '';
+        const toolContentHtml = `
+          <div style="font-size:13.5px; margin-bottom:12px; line-height:1.6;">
+            <div><span style="font-weight:600;color:var(--text-secondary);">工具名称：</span><code>${escapeHtml(toolName)}</code></div>
+            ${cmd ? `<div style="margin-top:4px;word-break:break-all;"><span style="font-weight:600;color:var(--text-secondary);">执行指令：</span><code>${escapeHtml(cmd)}</code></div>` : ''}
+            <div style="margin-top:4px;"><span style="font-weight:600;color:var(--text-secondary);">调用描述：</span>${escapeHtml(title)}</div>
+          </div>
+          ${output ? `<div style="font-weight:700;color:var(--text-primary);margin-bottom:6px;font-size:14px;">💻 控制台输出结果：</div>
+          <pre style="margin:0; padding:12px; background:#05070e; border:1px solid var(--border); border-radius:8px; white-space:pre-wrap; overflow-wrap:anywhere; font-family:var(--font-mono); font-size:13.5px; color:#a7f3d0; line-height:1.55; max-height:480px; overflow-y:auto;">${escapeHtml(String(output))}</pre>` : '<div style="color:var(--text-tertiary);font-style:italic;font-size:13px;">[执行完成，无控制台输出]</div>'}
+        `;
+        const detailId = registerDetailPayload({
+          title: `${icon} ${toolName} 工具执行详情`,
+          html: toolContentHtml,
+          kind: 'tool'
+        });
+
         nodes.push(`
           <div class="timeline-node ${classType}" 
+               style="cursor:pointer;"
                data-tooltip-title="${icon} 工具: ${escapeHtml(toolName)}" 
                data-tooltip-meta="工具调用" 
                data-tooltip-content="${escapeHtml(tooltipContent)}" 
                onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()">
+               onmouseleave="hideTimelineTooltip()"
+               onclick="openRegisteredDetail('${detailId}', this)">
             <span>${icon}</span>
           </div>`);
       }
@@ -2717,13 +2765,29 @@
         const title = part.state?.title || 'subagent';
         const output = part.state?.output || part.state?.metadata?.output || '';
         const tooltipContent = `子代理: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
+
+        const agentContentHtml = `
+          <div style="font-size:13.5px; margin-bottom:12px; line-height:1.6;">
+            <div><span style="font-weight:600;color:var(--text-secondary);">子代理任务：</span><code>${escapeHtml(title)}</code></div>
+          </div>
+          ${output ? `<div style="font-weight:700;color:var(--text-primary);margin-bottom:6px;font-size:14px;">🤖 协作输出报告：</div>
+          <div style="padding:10px; background:var(--bg-primary); border:1px solid var(--border); border-radius:8px; max-height:480px; overflow-y:auto; font-size:14px; line-height:1.6; color:var(--text-secondary);">${renderMarkdown(String(output))}</div>` : '<div style="color:var(--text-tertiary);font-style:italic;font-size:13px;">[协作已完成，无独立报告输出]</div>'}
+        `;
+        const detailId = registerDetailPayload({
+          title: `🤖 ${title} 子代理协作详情`,
+          html: agentContentHtml,
+          kind: 'agent'
+        });
+
         nodes.push(`
           <div class="timeline-node agent" 
+               style="cursor:pointer;"
                data-tooltip-title="🤖 子代理: ${escapeHtml(title)}" 
                data-tooltip-meta="子代理协作" 
                data-tooltip-content="${escapeHtml(tooltipContent)}" 
                onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()">
+               onmouseleave="hideTimelineTooltip()"
+               onclick="openRegisteredDetail('${detailId}', this)">
             <span>🤖</span>
           </div>`);
       }
