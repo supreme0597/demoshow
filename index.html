@@ -2888,14 +2888,22 @@
         const isReadWrite = ['write', 'write_to_file', 'read', 'read_file', 'view_file', 'replace_file_content', 'multi_replace_file_content'].includes(tool);
         if (isReadWrite) return false;
 
-        // 过滤跟当前 Turn 中的 skill 意图重复的底层命令行执行
-        if ((tool === 'bash' || tool === 'run_command') && (turn.skills || []).length > 0) {
-          const cmd = String(t.part?.state?.input?.command || '').toLowerCase();
-          const hasSkillTrigger = turn.skills.some(sk => {
-            const skName = String(sk.part?.state?.input?.name || sk.part?.state?.metadata?.name || '').toLowerCase();
-            return skName && (cmd.includes(skName) || cmd.includes('skills/'));
-          });
-          if (hasSkillTrigger) return false;
+        // 过滤跟当前 Turn 中的 skill 意图重复的底层命令行执行，以及只读监控诊断型命令
+        if (tool === 'bash' || tool === 'run_command') {
+          const cmd = String(t.part?.state?.input?.command || '').trim().toLowerCase();
+          
+          // 1. 过滤同轮 Skill 重复调用
+          if ((turn.skills || []).length > 0) {
+            const hasSkillTrigger = turn.skills.some(sk => {
+              const skName = String(sk.part?.state?.input?.name || sk.part?.state?.metadata?.name || '').toLowerCase();
+              return skName && (cmd.includes(skName) || cmd.includes('skills/'));
+            });
+            if (hasSkillTrigger) return false;
+          }
+          
+          // 2. 过滤只读监控诊断型命令 (如 tail, cat, ls, ps, grep, echo, pwd, cd)
+          const isReadOnlyCmd = /^(tail|cat|ls|ps|grep|echo|pwd|cd)\b/.test(cmd);
+          if (isReadOnlyCmd) return false;
         }
 
         return tool !== 'todowrite' && !['ask_user_question', 'ask_permission', 'question'].includes(tool) && !tool.includes('ask_question') && !tool.includes('ask_permission');
