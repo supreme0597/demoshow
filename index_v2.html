@@ -260,6 +260,28 @@
     .deviation-badge.new { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success-glow); }
     .deviation-badge.modified { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid var(--warning-glow); }
 
+    /* 新增任务翠绿高反光虚化卡片 */
+    .todo-column-card.deviation-new {
+      border: 1px solid rgba(16, 185, 129, 0.45) !important;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.15), var(--shadow-premium) !important;
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(15, 23, 42, 0.6) 100%) !important;
+    }
+    .todo-column-card.deviation-new:hover {
+      border-color: rgba(16, 185, 129, 0.7) !important;
+      box-shadow: 0 0 35px rgba(16, 185, 129, 0.25), var(--shadow-premium) !important;
+    }
+
+    /* 修改任务金黄高反光虚化卡片 */
+    .todo-column-card.deviation-modified {
+      border: 1px solid rgba(245, 158, 11, 0.45) !important;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.15), var(--shadow-premium) !important;
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(15, 23, 42, 0.6) 100%) !important;
+    }
+    .todo-column-card.deviation-modified:hover {
+      border-color: rgba(245, 158, 11, 0.7) !important;
+      box-shadow: 0 0 35px rgba(245, 158, 11, 0.25), var(--shadow-premium) !important;
+    }
+
     .column-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 
     /* TODO 纵向消息故事流 */
@@ -571,71 +593,332 @@
       color: #fff;
     }
 
-    .drawer-body {
-      padding: 24px;
-      overflow-y: auto;
+    /* ========== 全局审计时序时间轴 (Audit Timeline) ========== */
+    .phase-timeline {
       flex: 1;
+      min-height: 0;
+      overflow-y: auto !important;
+      padding: 24px 16px;
+      position: relative;
+    }
+    .audit-timeline {
+      max-width: 960px;
+      margin: 0 auto;
+      position: relative;
+      padding-left: 20px;
+    }
+    /* 核心发光时间轴线 */
+    .audit-timeline::before {
+      content: '';
+      position: absolute;
+      left: 140px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--purple) 50%, rgba(255,255,255,0.02) 100%);
+      z-index: 1;
+    }
+    .audit-node {
       display: flex;
-      flex-direction: column;
-      gap: 16px;
+      gap: 32px;
+      margin-bottom: 28px;
+      position: relative;
+      z-index: 2;
     }
+    /* 左侧时间列 */
+    .audit-time-col {
+      width: 120px;
+      flex-shrink: 0;
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 14px;
+    }
+    /* 核心连接节点 */
+    .audit-marker {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-dark);
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+      flex-shrink: 0;
+      margin-top: 12px;
+    }
+    .audit-node.user .audit-marker {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .audit-node.ai .audit-marker {
+      border-color: var(--purple);
+      box-shadow: 0 0 8px var(--purple-glow);
+    }
+    
+    /* 时间轴主体卡片 */
+    .audit-content-card {
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      padding: 18px 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-premium);
+      transition: all 0.25s;
+    }
+    .audit-content-card:hover {
+      border-color: rgba(99, 102, 241, 0.25);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .audit-node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed rgba(255,255,255,0.05);
+      padding-bottom: 8px;
+    }
+    .audit-badge {
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .audit-badge.user { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.25); }
+    .audit-badge.ai { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border: 1px solid rgba(168,85,247,0.25); }
+    .audit-title { font-family: var(--font-display); font-size: 13px; font-weight: 800; color: #fff; }
+    
+    .audit-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; word-break: break-all; }
 
-    .empty-board {
-      width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; color: var(--text-muted); font-size: 14px; gap: 8px;
+    /* 极客终端折叠框 */
+    .audit-tools-section { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .audit-tool-row {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      overflow: hidden;
     }
-
-    /* ========== 阶段时间线视图 (Phase Timeline) ========== */
-    .phase-timeline { height: 100%; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
-    
-    .phase-card {
-      background: var(--bg-panel); border: 1px solid var(--border-card); border-radius: 14px;
-      overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-premium);
+    .audit-tool-header {
+      padding: 8px 14px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(255,255,255,0.02);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #a7f3d0;
+      user-select: none;
+      transition: all 0.2s;
     }
-    .phase-card.dimmed { opacity: 0.5; }
-    .phase-header {
-      display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer;
-      background: rgba(255,255,255,0.01);
+    .audit-tool-header:hover { color: #fff; background: rgba(255,255,255,0.04); }
+    .audit-tool-indicator { font-size: 8px; color: var(--text-muted); transition: transform 0.2s; }
+    .audit-tool-row.open .audit-tool-header { color: #fff; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .audit-tool-row.open .audit-tool-indicator { transform: rotate(90deg); color: #fff; }
+    .audit-tool-body {
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #05070e;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+      max-height: 250px;
+      display: none;
     }
-    .phase-header:hover { background: rgba(99, 102, 241, 0.05); }
-    .phase-indicator { width: 4px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
-    .phase-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .phase-title-row { display: flex; align-items: center; gap: 10px; }
-    .phase-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .audit-tool-row.open .audit-tool-body { display: block; }
     
-    .conf-badge { font-size: 9px; padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
-    .conf-high { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success-glow); }
-    .conf-medium { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid var(--warning-glow); }
-    .conf-low { background: rgba(255,255,255,0.03); color: var(--text-muted); border: 1px solid var(--border-card); }
-    
-    .phase-bar-row { display: flex; align-items: center; gap: 10px; }
-    .phase-bar { flex: 1; height: 6px; background: rgba(0,0,0,0.3); border-radius: 99px; overflow: hidden; }
-    .phase-fill { height: 100%; border-radius: 99px; }
-    .phase-meta { color: var(--text-secondary); font-size: 11px; white-space: nowrap; display: flex; gap: 12px; }
-    .phase-chevron { color: var(--text-muted); font-size: 12px; transition: transform .15s ease; }
-    .phase-card.open .phase-chevron { transform: rotate(90deg); }
-
-    .phase-steps { padding: 0 18px 14px 18px; display: none; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.02); }
-    .phase-card.open .phase-steps { display: flex; }
-    .phase-step { background: rgba(30, 41, 59, 0.25); border: 1px solid var(--border-card); border-radius: 8px; padding: 8px 12px; }
-    .step-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    .step-header:hover { color: var(--accent); }
-    .step-title { font-size: 12px; font-weight: 700; color: #fff; }
-    .step-right { display: flex; align-items: center; gap: 8px; }
-    .step-dur { color: var(--text-muted); font-size: 11px; }
-    
-    .step-detail { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-card); }
-    .phase-step.open .step-detail { display: block; }
-    .step-tools { display: flex; gap: 4px; flex-wrap: wrap; }
-    .step-tool { background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 4px; padding: 2px 6px; font-size: 10px; color: var(--text-secondary); }
-    .step-reasoning { margin-top: 6px; border-left: 2px solid var(--purple); padding-left: 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
-    .step-texts { margin-top: 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+    /* todowrite 审计表格 */
+    .todowrite-audit-table { width: 100%; border-collapse: collapse; font-family: var(--font-body); font-size: 11px; margin-top: 4px; }
+    .todowrite-audit-table th { text-align: left; color: var(--text-muted); font-size: 10px; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .todowrite-audit-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); }
+    .todowrite-status { font-weight: 800; border-radius: 4px; padding: 1px 6px; font-size: 9px; text-transform: uppercase; }
+    .todowrite-status.completed { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+    .todowrite-status.in_progress { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
+    .todowrite-status.todo { background: rgba(255,255,255,0.03); color: var(--text-muted); }
     .step-artifacts { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
     .step-artifact { font-size: 11px; background: rgba(16, 185, 129, 0.05); border: 1px solid var(--success-glow); border-radius: 4px; padding: 2px 6px; color: var(--success); }
     .step-tokens { margin-top: 6px; font-size: 10px; color: var(--text-muted); }
+
+    /* ==========================================================================
+       ⚡ 亮色主题 (Light Theme) 自适应色彩系统
+       ========================================================================== */
+    body[data-theme="light"] {
+      --bg-dark: #f1f5f9;
+      --bg-panel: rgba(255, 255, 255, 0.75);
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --bg-terminal: #0f172a;
+      --border-glow: rgba(99, 102, 241, 0.08);
+      --border-card: rgba(15, 23, 42, 0.06);
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-title: #0f172a;
+      
+      --accent: #4f46e5;
+      --accent-glow: rgba(79, 70, 229, 0.15);
+      --purple: #8b5cf6;
+      --purple-glow: rgba(139, 92, 246, 0.15);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.15);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.15);
+      
+      --shadow-premium: 0 10px 30px rgba(15, 23, 42, 0.04);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.04) 0px, transparent 50%) !important;
+    }
+
+    /* 亮色主题专属视觉适配微调 */
+    body[data-theme="light"] .drop-zone h1 {
+      background: linear-gradient(135deg, #0f172a 0%, #4f46e5 100%) !important;
+      -webkit-background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+    }
+    body[data-theme="light"] .info-title,
+    body[data-theme="light"] .column-title,
+    body[data-theme="light"] .summary-value,
+    body[data-theme="light"] .reasoning-title {
+      color: var(--text-title) !important;
+    }
+    body[data-theme="light"] .info-meta span {
+      color: var(--text-title) !important;
+    }
+    body[data-theme="light"] .user-bubble {
+      background: rgba(79, 70, 229, 0.1) !important;
+      color: #312e81 !important;
+      border-color: rgba(79, 70, 229, 0.25) !important;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.04) !important;
+    }
+    body[data-theme="light"] .user-bubble div {
+      color: inherit !important;
+    }
+    body[data-theme="light"] .switcher-select {
+      background: rgba(15, 23, 42, 0.04) !important;
+      color: var(--text-primary) !important;
+    }
+    body[data-theme="light"] .action-button {
+      background: rgba(15, 23, 42, 0.02);
+      border-color: rgba(15, 23, 42, 0.08);
+      color: var(--text-secondary);
+    }
+    body[data-theme="light"] .action-button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    body[data-theme="light"] .action-button.active {
+      background: var(--accent);
+      color: #fff !important;
+      border-color: var(--accent);
+    }
+    body[data-theme="light"] .progress-track {
+      background: rgba(15, 23, 42, 0.05);
+      border-color: rgba(15, 23, 42, 0.03);
+    }
+    body[data-theme="light"] .summary-item {
+      border-right: 1px solid rgba(15, 23, 42, 0.05);
+    }
+    body[data-theme="light"] .summary-item:last-child {
+      border-right: none;
+    }
+    body[data-theme="light"] .global-drawer {
+      background: rgba(255, 255, 255, 0.85);
+      border-left: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow: -10px 0 40px rgba(15, 23, 42, 0.06);
+    }
+    body[data-theme="light"] .global-drawer-overlay {
+      background: rgba(15, 23, 42, 0.2);
+    }
+    body[data-theme="light"] .drawer-header {
+      border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+      background: rgba(255, 255, 255, 0.3);
+    }
+    body[data-theme="light"] .drawer-title {
+      color: var(--text-title);
+    }
+    body[data-theme="light"] .step-card {
+      background: rgba(255, 255, 255, 0.5);
+      border-color: rgba(15, 23, 42, 0.06);
+      box-shadow: 0 4px 15px rgba(15, 23, 42, 0.02);
+    }
+    body[data-theme="light"] .step-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    body[data-theme="light"] .step-card.active {
+      background: rgba(255, 255, 255, 0.8);
+      border-color: var(--accent);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.06);
+    }
+    body[data-theme="light"] .reasoning-block {
+      background: rgba(15, 23, 42, 0.03);
+    }
+    body[data-theme="light"] .todowrite-status.todo {
+      background: rgba(15, 23, 42, 0.04);
+    }
+
+    /* 全局过渡动画声明，使色彩切换柔顺缓和 */
+    body, .info-bar, .session-summary, .todo-column-card, .bubble, .global-drawer, .audit-node, .audit-content-card, .audit-tool-row, .reasoning-block, .step-card, .theme-toggle-btn {
+      transition: background 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* ⚡ 主题切换悬浮按钮样式 */
+    .theme-toggle-btn {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 950;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-premium);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+    .theme-toggle-btn:hover {
+      transform: scale(1.1) rotate(15deg);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .theme-toggle-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    body[data-theme="light"] .theme-toggle-btn {
+      background: rgba(255, 255, 255, 0.85);
+      border-color: rgba(15, 23, 42, 0.08);
+      color: #475569;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+    }
+    body[data-theme="light"] .theme-toggle-btn:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 4px 25px var(--accent-glow);
+    }
   </style>
 </head>
 <body>
+  <!-- 全局亮暗色主题切换悬浮按钮 -->
+  <div id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="切换亮暗色主题">
+    <svg id="theme-toggle-icon" viewBox="0 0 24 24">
+      <path id="theme-icon-path" stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+    </svg>
+  </div>
+
   <!-- 1. 上传首屏 -->
   <main id="drop-zone" class="drop-zone">
     <div class="drop-icon">🚀</div>
@@ -851,11 +1134,7 @@
         // 调用我们重组后的“纯 TODO 实体横向列聚合分派算法”
         const columns = groupMessagesToTodoColumns(verTimeline, ver.todos, verMessages, isFirstVersion);
         ver.columns = columns;
-
-        const verSteps  = extractSteps(verMessages);
-        const verPhases = aggregatePhases(verSteps);
-        ver.steps  = verSteps;
-        ver.phases = verPhases;
+        ver.activeChain = verMessages; // 保存当前规划周期内的所有消息以做完整的线性时序审计轴
       }
 
       return { session, todoVersions, activeChain, timeline };
@@ -1454,6 +1733,7 @@
         
         // 智能检测新增/被中途更改的任务
         let deviationHtml = '';
+        let deviationClass = '';
         if (!isInitCol && activeVersionIdx > 0) {
           const firstVer = globalSessionData.todoVersions[0];
           const exist = firstVer.todos.some(t => t.index === col.todo.index);
@@ -1461,13 +1741,15 @@
           
           if (!exist) {
             deviationHtml = `<span class="deviation-badge new">[NEW]</span>`;
+            deviationClass = 'deviation-new';
           } else if (!sameDesc) {
             deviationHtml = `<span class="deviation-badge modified">[MODIFIED]</span>`;
+            deviationClass = 'deviation-modified';
           }
         }
 
         return `
-          <div class="todo-column-card ${statusClass}">
+          <div class="todo-column-card ${statusClass} ${deviationClass}">
             <!-- 表头 -->
             <div class="column-header">
               <div class="column-title-row">
@@ -1655,146 +1937,294 @@
       return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    /* ========== 5. 跨列穿透查看交互 Drawer ========== */
+    /* ========== 6. 全局线性审计时序轴 (Audit Timeline View) ========== */
 
-    function openDrawer(turnId, colIdx) {
-      const overlay = document.getElementById('global-drawer-overlay');
-      const drawer = document.getElementById('global-drawer');
-      const body = document.getElementById('drawer-body');
-      
-      // 查找到该原始 turn 完整节点并克隆渲染
-      const ver = globalSessionData.todoVersions[activeVersionIdx];
-      let foundTurn = null;
-      for (const col of ver.columns) {
-        const turn = col.turns.find(t => t.id === turnId);
-        if (turn) {
-          foundTurn = turn;
-          break;
-        }
-      }
-
-      if (foundTurn) {
-        // 重写 isCrossTask = false 迫使其在抽屉内以 100% 完整体完美展现！
-        const fullTurn = { ...foundTurn, isCrossTask: false };
-        body.innerHTML = renderTurnBlock(fullTurn, colIdx);
-        overlay.classList.add('visible');
-        drawer.classList.add('visible');
-        setTimeout(() => Prism.highlightAll(), 50);
-      }
+    function formatTime(timestamp) {
+      if (!timestamp) return '00:00:00.000';
+      const date = new Date(timestamp);
+      const hrs = String(date.getHours()).padStart(2, '0');
+      const mins = String(date.getMinutes()).padStart(2, '0');
+      const secs = String(date.getSeconds()).padStart(2, '0');
+      const ms = String(date.getMilliseconds()).padStart(3, '0');
+      return `${hrs}:${mins}:${secs}.${ms}`;
     }
-
-    function closeDrawer() {
-      document.getElementById('global-drawer-overlay').classList.remove('visible');
-      document.getElementById('global-drawer').classList.remove('visible');
-    }
-
-    /* ========== 6. 时序工作流渲染层 (Phase Timeline View) ========== */
 
     function renderPhaseTimeline(ver) {
       const container = document.getElementById('phase-view');
-      const phases = ver.phases || [];
+      const activeChain = ver.activeChain || [];
 
-      if (!phases.length) {
-        container.innerHTML = `<div class="empty"><h3>暂无时序阶段数据</h3></div>`;
+      if (!activeChain.length) {
+        container.innerHTML = `
+          <div class="empty-board">
+            <span style="font-size:40px;">📂</span>
+            <h3>暂无时序阶段数据</h3>
+            <p>该 Session 在当前版本可能尚未发生实质交互。</p>
+          </div>
+        `;
         return;
       }
 
-      container.innerHTML = phases.map((phase, pi) => {
-        const totalDuration = phase.steps.reduce((sum, s) => sum + s.duration, 0);
-        const totalCost = phase.steps.reduce((sum, s) => sum + s.cost, 0);
-        const additions = phase.artifacts.reduce((sum, a) => sum + (a.additions || 0), 0);
+      // 获取当前版本涉及的所有 events（为了关联工具调用与 parts）
+      const timeline = globalSessionData.timeline || [];
+      const messagesGroup = new Map();
+      timeline.forEach(event => {
+        const key = event.messageIndex !== undefined ? event.messageIndex : -1;
+        if (!messagesGroup.has(key)) messagesGroup.set(key, []);
+        messagesGroup.get(key).push(event);
+      });
+
+      let auditNodesHtml = '';
+
+      // 遍历在这个版本周期内的所有消息节点，严格保证时序性
+      activeChain.forEach((msg, idx) => {
+        const info = msg.info || {};
+        const role = info.role || msg.role || 'unknown';
+        const time = info.time?.created || info.time?.completed || 0;
+        const msgId = msg.id || info.id || `msg-${idx}`;
         
-        return `
-          <div class="phase-card open" id="phase-${pi}">
-            <div class="phase-header" onclick="togglePhase(${pi})">
-              <div class="phase-indicator" style="background:var(--accent);"></div>
-              <div class="phase-body">
-                <div class="phase-title-row">
-                  <span class="phase-title">${phase.title}</span>
-                  <span class="conf-badge conf-${phase.confidence}">${phase.confidence} confidence</span>
-                </div>
-                <div class="phase-bar-row">
-                  <div class="phase-bar">
-                    <div class="phase-fill" style="width: 100%; background:var(--accent);"></div>
-                  </div>
-                  <div class="phase-meta">
-                    <span>⏱️ ${(totalDuration / 1000).toFixed(1)}s</span>
-                    <span>📂 ${phase.artifacts.length} 制品</span>
-                    ${additions > 0 ? `<span style="color:var(--success);">+${additions} 行</span>` : ''}
-                  </div>
-                </div>
+        const originalIndex = globalSessionData.activeChain.findIndex(m => (m.id || m.info?.id) === msgId);
+        const events = messagesGroup.get(originalIndex) || [];
+
+        const isUser = role === 'user';
+        const roleClass = isUser ? 'user' : 'ai';
+
+        let turnBubbleHtml = '';
+
+        if (isUser) {
+          // Dev 提问：渲染高反光右侧深蓝气泡
+          const userTexts = events.filter(e => e.type === 'text').map(e => e.part?.text || e.text || '').join('<br/>');
+          turnBubbleHtml = `
+            <div class="message-row user" style="margin: 0; width: 100%;">
+              <div class="bubble user-bubble" style="max-width: 90%; font-size:13px; line-height:1.6; border-radius: 14px 14px 2px 14px; box-shadow: 0 4px 15px rgba(99,102,241,0.15);">
+                <span class="bubble-label" style="font-size:9px; color:#a5b4fc; letter-spacing:0.04em;">Dev Input</span>
+                <div style="color:#fff;">${userTexts || '[空文本提问]'}</div>
               </div>
-              <span class="phase-chevron">▶</span>
+              <div class="avatar user-avatar" style="width:28px; height:28px; font-size:9px; margin-left:10px;">Dev</div>
             </div>
+          `;
+        } else {
+          // AI 响应：渲染左侧深灰色磨砂气泡 + 思维盒 + 工具审计折叠面板
+          let aiInnerHtml = '';
+          
+          // 1. 思维链 (AI Thinking...)
+          const reasoningEvents = events.filter(e => e.type === 'reasoning');
+          if (reasoningEvents.length > 0) {
+            aiInnerHtml += `
+              <div class="reasoning-block" style="margin-top:0; margin-bottom:12px; border-radius: 6px 12px 12px 6px;">
+                <div class="reasoning-title" style="font-size:9px; font-weight:800; letter-spacing:0.04em;">🧠 AI Thinking...</div>
+                <div style="font-size:11.5px; line-height:1.5; color:var(--text-secondary);">${reasoningEvents.map(r => r.part?.text || '').join('<br/>')}</div>
+              </div>
+            `;
+          }
+
+          // 2. AI 答复文本
+          const aiTexts = events.filter(e => e.type === 'text' && e.role === 'assistant');
+          if (aiTexts.length > 0) {
+            aiInnerHtml += `
+              <div class="audit-text" style="margin-bottom:12px; color:var(--text-primary); font-size:13px; line-height:1.6;">
+                ${aiTexts.map(t => t.part?.text || '').join('<br/>')}
+              </div>
+            `;
+          }
+
+          // 3. 🚀 工具与交付制品审计（todowrite 表格、bash 命令行终端、Artifacts 资产）
+          const toolEvents = events.filter(e => e.type === 'tool' || e.type === 'patch' || e.type === 'diffs');
+          if (toolEvents.length > 0) {
+            aiInnerHtml += `<div class="audit-tools-section">`;
             
-            <div class="phase-steps">
-              ${phase.steps.map((step, si) => renderStepBlock(step, si)).join('')}
+            toolEvents.forEach((evt, evtIdx) => {
+              const uniqueToolId = `audit-tool-${originalIndex}-${evtIdx}`;
+              
+              if (evt.type === 'tool') {
+                const toolName = evt.part?.tool || 'unknown';
+                const isTodowrite = toolName === 'todowrite';
+                const title = evt.part?.state?.title || (isTodowrite ? '看板任务规划' : '工具调用');
+                
+                if (isTodowrite) {
+                  // todowrite 审计表格
+                  const rawTodos = evt.part?.state?.input?.todos || [];
+                  let tableRows = '';
+                  rawTodos.forEach((t, tIdx) => {
+                    const statusClass = t.status === 'completed' ? 'completed' : (t.status === 'in_progress' ? 'in_progress' : 'todo');
+                    const statusText = t.status || 'todo';
+                    
+                    // NOTE: 智能检测新增/被中途更改的任务，并与 Baseline（即首版规划 V1.0）进行差分审计
+                    let deviationHtml = '';
+                    let rowStyle = '';
+                    const firstVer = globalSessionData.todoVersions ? globalSessionData.todoVersions[0] : null;
+                    
+                    if (firstVer && firstVer.todos && firstVer.todos.length > 0) {
+                      // 仅在首版规划之后的更新中，进行差异度分析高亮
+                      const isAfterFirstVer = originalIndex > firstVer.messageIndex;
+                      if (isAfterFirstVer) {
+                        const exist = firstVer.todos.some(ft => ft.index === tIdx);
+                        const sameDesc = firstVer.todos.some(ft => ft.index === tIdx && ft.content === t.content);
+                        
+                        if (!exist) {
+                          deviationHtml = `<span class="deviation-badge new" style="margin-left: 6px; font-size:8px; padding:1px 4px;">[NEW]</span>`;
+                          rowStyle = 'background: rgba(16, 185, 129, 0.06);';
+                        } else if (!sameDesc) {
+                          deviationHtml = `<span class="deviation-badge modified" style="margin-left: 6px; font-size:8px; padding:1px 4px;">[MODIFIED]</span>`;
+                          rowStyle = 'background: rgba(245, 158, 11, 0.06);';
+                        }
+                      }
+                    }
+
+                    tableRows += `
+                      <tr style="${rowStyle}">
+                        <td style="width: 40px; font-weight:800; color:var(--accent); font-family:var(--font-mono);">T1.${tIdx + 1}</td>
+                        <td style="color:#f8fafc; font-weight:500;">
+                          ${escapeHtml(t.content)}
+                          ${deviationHtml}
+                        </td>
+                        <td style="width: 85px;"><span class="todowrite-status ${statusClass}">${statusText}</span></td>
+                        <td style="width: 50px; color:var(--text-muted); font-size:9px; text-transform:uppercase;">${t.priority || 'medium'}</td>
+                      </tr>
+                    `;
+                  });
+
+                  const todoTableHtml = `
+                    <table class="todowrite-audit-table">
+                      <thead>
+                        <tr>
+                          <th>编号</th>
+                          <th>规划任务描述</th>
+                          <th>实时状态</th>
+                          <th>优先级</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${tableRows || '<tr><td colspan="4" style="color:var(--text-muted); text-align:center;">[未配置规划列表]</td></tr>'}
+                      </tbody>
+                    </table>
+                  `;
+
+                  aiInnerHtml += `
+                    <div class="audit-tool-row open" id="${uniqueToolId}">
+                      <div class="audit-tool-header" onclick="toggleAuditTool('${uniqueToolId}')">
+                        <span>📋 [Tool: todowrite] 批量看板规划更新 (${rawTodos.length} 项)</span>
+                        <span class="audit-tool-indicator">▶</span>
+                      </div>
+                      <div class="audit-tool-body">
+                        ${todoTableHtml}
+                      </div>
+                    </div>
+                  `;
+                } else {
+                  // bash, read, write 等命令行终端框
+                  const cmd = evt.part?.state?.input?.command || evt.part?.state?.input?.filePath || evt.part?.state?.metadata?.filepath || '';
+                  const out = evt.part?.state?.output || '';
+                  
+                  aiInnerHtml += `
+                    <div class="audit-tool-row" id="${uniqueToolId}">
+                      <div class="audit-tool-header" onclick="toggleAuditTool('${uniqueToolId}')">
+                        <span>⚡ [Tool: ${toolName}] ${title}</span>
+                        <span class="audit-tool-indicator">▶</span>
+                      </div>
+                      <div class="audit-tool-body" style="padding: 10px 12px; background:#070913;">
+                        <div style="color:#a5b4fc; font-weight:700; margin-bottom: 6px; font-family:var(--font-mono);">$ ${escapeHtml(cmd || '无执行参数')}</div>
+                        ${out ? `<div style="color:#a7f3d0; white-space:pre-wrap; font-family:var(--font-mono);">${escapeHtml(out)}</div>` : '<div style="color:var(--text-muted); font-style:italic;">[执行完成，标准输出为空]</div>'}
+                      </div>
+                    </div>
+                  `;
+                }
+              } else if (evt.type === 'patch' || evt.type === 'diffs') {
+                // 交付物理资产制品
+                const files = evt.type === 'patch' ? (evt.part?.files || []) : (evt.diffs || []).map(d => d.file);
+                aiInnerHtml += `
+                  <div class="audit-tool-row" id="${uniqueToolId}">
+                    <div class="audit-tool-header" onclick="toggleAuditTool('${uniqueToolId}')">
+                      <span style="color:var(--success);">📦 [Artifact] 产出/改动交付物理资产</span>
+                      <span class="audit-tool-indicator">▶</span>
+                    </div>
+                    <div class="audit-tool-body" style="background:#070913; padding: 10px 12px;">
+                      <div style="color:var(--success); font-weight:800; font-size:10px; margin-bottom: 6px; text-transform:uppercase; letter-spacing:0.04em;">📂 关联文件追踪：</div>
+                      ${files.map(f => `<div style="color:#e2e8f0; font-family:var(--font-mono); margin-left: 10px; margin-bottom: 3px;">📄 ${f}</div>`).join('') || '<div style="color:var(--text-muted);">[无文件改动]</div>'}
+                    </div>
+                  </div>
+                `;
+              }
+            });
+            
+            aiInnerHtml += `</div>`;
+          }
+
+          turnBubbleHtml = `
+            <div class="message-row ai" style="margin: 0; width: 100%; align-items: flex-start;">
+              <div class="avatar ai-avatar" style="width:28px; height:28px; font-size:9px; margin-right:10px;">AI</div>
+              <div class="bubble ai-bubble" style="max-width: 90%; font-size:13px; border-radius: 14px 14px 14px 2px; border: 1px solid var(--border-card); flex: 1;">
+                <span class="bubble-label" style="font-size:9px; color:#d8b4fe; letter-spacing:0.04em;">AI Assistant</span>
+                ${aiInnerHtml}
+              </div>
+            </div>
+          `;
+        }
+
+        auditNodesHtml += `
+          <div class="audit-node ${roleClass}">
+            <div class="audit-time-col">
+              ${formatTime(time)}
+            </div>
+            <div class="audit-marker"></div>
+            <div class="audit-content-card" style="border: 0; background: transparent; box-shadow: none; padding: 0; display: flex; align-items: center;">
+              ${turnBubbleHtml}
             </div>
           </div>
         `;
-      }).join('');
-    }
+      });
 
-    function renderStepBlock(step, si) {
-      return `
-        <div class="phase-step" id="step-${si}">
-          <div class="step-header" onclick="toggleStep(${si})">
-            <div class="step-title">Turn #${step.messageIndex + 1} — AI 研发响应</div>
-            <div class="step-right">
-              <span class="step-dur">${(step.duration / 1000).toFixed(1)}s</span>
-              <span class="step-reason-badge">${step.finishReason}</span>
-            </div>
-          </div>
-          
-          <div class="step-detail" id="step-detail-${si}">
-            <!-- 激活工具 -->
-            ${step.tools.length > 0 ? `
-              <div class="step-tools">
-                ${step.tools.map(t => `<span class="step-tool">⚡ ${t.part?.tool}</span>`).join('')}
-              </div>
-            ` : ''}
-            
-            <!-- 思维链 -->
-            ${step.reasoning.length > 0 ? `
-              <div class="step-reasoning">
-                <strong>🧠 思考逻辑：</strong>${step.reasoning.map(r => r.part?.text || '').join('<br/>')}
-              </div>
-            ` : ''}
-
-            <!-- 纯文本 -->
-            ${step.texts.length > 0 ? `
-              <div class="step-texts">
-                ${step.texts.map(t => t.part?.text || '').join('<br/>')}
-              </div>
-            ` : ''}
-
-            <!-- 产生制品 -->
-            ${step.artifacts.length > 0 ? `
-              <div class="step-artifacts">
-                ${step.artifacts.map(a => `<span class="step-artifact">📄 ${a.file.split('/').pop()}</span>`).join('')}
-              </div>
-            ` : ''}
-
-            <!-- 令牌耗费 -->
-            <div class="step-tokens">
-              Tokens: In: ${step.tokens?.input || 0} | Out: ${step.tokens?.output || 0}
-            </div>
-          </div>
+      container.innerHTML = `
+        <div class="audit-timeline">
+          ${auditNodesHtml}
         </div>
       `;
     }
 
-    function togglePhase(idx) {
-      const card = document.getElementById(`phase-${idx}`);
-      card.classList.toggle('open');
+    function toggleAuditTool(id) {
+      const row = document.getElementById(id);
+      if (row) {
+        row.classList.toggle('open');
+      }
     }
 
-    function toggleStep(idx) {
-      const step = document.getElementById(`step-${idx}`);
-      const detail = document.getElementById(`step-detail-${idx}`);
-      const isOpen = step.classList.toggle('open');
-      detail.style.display = isOpen ? 'block' : 'none';
+    // ==========================================================================
+    // ⚡ 亮暗主题切换核心逻辑 (Theme Switcher Control)
+    // ==========================================================================
+    function toggleTheme() {
+      const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.body.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('theme', nextTheme);
+      
+      updateThemeIcon(nextTheme);
     }
+    
+    function updateThemeIcon(theme) {
+      const path = document.getElementById('theme-icon-path');
+      const svg = document.getElementById('theme-toggle-icon');
+      if (!path || !svg) return;
+      
+      // 旋转 360 度高级阻尼动效
+      svg.style.transform = svg.style.transform === 'rotate(360deg)' ? 'rotate(0deg)' : 'rotate(360deg)';
+      
+      if (theme === 'light') {
+        // 月亮图标
+        path.setAttribute('d', 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z');
+      } else {
+        // 太阳图标
+        path.setAttribute('d', 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z');
+      }
+    }
+
+    // 预先初始化加载主题设置，防止首屏亮白闪烁
+    (function() {
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.body.setAttribute('data-theme', savedTheme);
+      window.addEventListener('DOMContentLoaded', () => {
+        updateThemeIcon(savedTheme);
+      });
+    })();
   </script>
 </body>
 </html>
