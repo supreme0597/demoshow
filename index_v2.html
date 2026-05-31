@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>opencode Session 看板故事墙</title>
+  <!-- Google 现代字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Prism.js 代码高亮库 CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+  <style>
+    /* ========== 极客暗黑风 & 毛玻璃视觉系统 (Theme) ========== */
+    :root {
+      --bg-dark: #0a0f1d;
+      --bg-panel: rgba(15, 23, 42, 0.55);
+      --bg-card: rgba(30, 41, 59, 0.4);
+      --bg-terminal: #070913;
+      --border-glow: rgba(99, 102, 241, 0.15);
+      --border-card: rgba(255, 255, 255, 0.06);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.4);
+      --purple: #a855f7;
+      --purple-glow: rgba(168, 85, 247, 0.3);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.3);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.3);
+      --error: #ef4444;
+      
+      --font-display: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 滚动条统一美化 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-glow); }
+
+    .hidden { display: none !important; }
+
+    /* ========== 拖拽上传首屏 (Upload Screen) ========== */
+    .drop-zone {
+      min-height: calc(100vh - 32px);
+      margin: 16px;
+      background: var(--bg-panel);
+      border: 2px dashed rgba(99, 102, 241, 0.3);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--text-secondary);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-premium);
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(99, 102, 241, 0.06);
+      transform: scale(0.995);
+      box-shadow: 0 0 50px rgba(99, 102, 241, 0.2);
+    }
+    .drop-zone h1 {
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: #fff;
+      font-size: 38px;
+      margin: 0 0 12px;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .drop-zone p { font-size: 16px; margin: 0; color: var(--text-secondary); }
+    .drop-icon {
+      font-size: 64px; margin-bottom: 20px;
+      filter: drop-shadow(0 0 15px var(--accent-glow));
+      animation: pulse 2s infinite;
+    }
+    .drop-error { color: var(--error); margin-top: 18px; font-size: 14px; font-weight: 500; }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.8; }
+    }
+
+    /* ========== 主应用框架 (Main Frame) ========== */
+    .app { height: 100%; display: flex; flex-direction: column; }
+    
+    /* 顶层毛玻璃属性面板 (Info Bar) */
+    .info-bar {
+      margin: 16px 16px 8px;
+      padding: 16px 20px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-premium);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .info-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .info-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .info-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 20px;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .info-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-card);
+    }
+    .info-actions { display: flex; gap: 8px; align-items: center; }
+    
+    .switcher-label { color: var(--text-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    .switcher-select {
+      background: rgba(0, 0, 0, 0.2);
+      color: #fff;
+      border: 1px solid var(--border-card);
+      border-radius: 8px;
+      padding: 6px 32px 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 14px;
+      transition: all 0.2s;
+    }
+    .switcher-select:hover { border-color: var(--accent); }
+
+    .action-button {
+      border: 1px solid var(--border-card);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .action-button:hover { border-color: var(--accent); color: #fff; }
+    .action-button.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
+    
+    .global-progress { display: flex; align-items: center; gap: 12px; }
+    .progress-track { height: 8px; background: rgba(0,0,0,0.3); border-radius: 99px; overflow: hidden; flex: 1; border: 1px solid rgba(255,255,255,0.03); }
+    .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    .global-progress .progress-fill { background: linear-gradient(90deg, var(--purple), var(--success)); box-shadow: 0 0 10px var(--success-glow); }
+    .progress-label { color: var(--success); font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+
+    /* ========== 顶层版本对比汇总面板 (Session Summary) ========== */
+    .session-summary {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      margin: 0 16px 8px;
+      padding: 16px 20px;
+      backdrop-filter: blur(20px);
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-premium);
+    }
+    .summary-item { display: flex; flex-direction: column; gap: 4px; }
+    .summary-label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+    .summary-value { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: #fff; }
+    .summary-sub { font-size: 12px; color: var(--text-secondary); }
+
+    /* ========== 视图容器 (View Container) ========== */
+    .view-container { flex: 1; min-height: 0; }
+    
+    /* 横向滑动 TODO 看板 */
+    .board {
+      height: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 0 16px 16px;
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    /* 每一个横向大卡片 (TODO 大列) */
+    .todo-column-card {
+      min-width: 420px;
+      max-width: 460px;
+      flex: 0 0 440px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-premium);
+      overflow: hidden;
+      transition: border-color 0.25s;
+    }
+    .todo-column-card:hover { border-color: rgba(99, 102, 241, 0.25); }
+    .todo-column-card.completed { border-color: var(--success-glow); }
+    .todo-column-card.in_progress { border-color: var(--warning-glow); }
+    .todo-column-card.pending { opacity: 0.5; }
+
+    /* TODO 卡片表头 */
+    .column-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border-card);
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .column-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .column-title { display: flex; align-items: flex-start; gap: 10px; font-family: var(--font-display); font-size: 15px; font-weight: 800; color: #fff; }
+    .column-status-badge {
+      border-radius: 999px; padding: 2px 10px; font-size: 10px; font-weight: 800; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .column-status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success-glow); }
+    .column-status-badge.in_progress { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning-glow); }
+    .column-status-badge.pending { background: rgba(255,255,255,0.03); color: var(--text-muted); border: 1px solid var(--border-card); }
+    
+    /* 偏离与新增任务预警徽章 */
+    .deviation-badge {
+      font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+    }
+    .deviation-badge.new { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success-glow); }
+    .deviation-badge.modified { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid var(--warning-glow); }
+
+    .column-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+    /* TODO 纵向消息故事流 */
+    .column-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    /* 纵向连线 */
+    .column-body::before {
+      content: '';
+      position: absolute;
+      left: 32px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, var(--border-card) 0%, rgba(255,255,255,0.02) 100%);
+      z-index: 1;
+    }
+
+    /* 每一个协作回合 (Turn Block) */
+    .turn-block {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .message-row { display: flex; gap: 12px; align-items: flex-start; }
+    .message-row.user { justify-content: flex-end; }
+    
+    /* 人机头像与发光圈 */
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .user-avatar { background: var(--accent); border: 1px solid var(--accent-glow); box-shadow: 0 0 8px var(--accent-glow); }
+    .ai-avatar { background: var(--purple); border: 1px solid var(--purple-glow); box-shadow: 0 0 8px var(--purple-glow); }
+
+    /* 消息气泡 */
+    .bubble {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .user-bubble {
+      background: rgba(99, 102, 241, 0.15);
+      color: #fff;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 14px 14px 2px 14px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.05);
+    }
+    .ai-bubble {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-card);
+      border-radius: 14px 14px 14px 2px;
+    }
+    .bubble-label { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    
+    /* 思考气泡 (AI Reasoning) */
+    .reasoning-block {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.2);
+      border-left: 2px solid var(--purple);
+      border-radius: 4px 10px 10px 4px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .reasoning-title {
+      font-weight: 700;
+      color: var(--purple);
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ========== 发光 Skill 勋章 & 终端 Block ========== */
+    .skills-container { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+    .skill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #d8b4fe;
+    }
+    .skill-badge .chip-icon { font-size: 11px; filter: drop-shadow(0 0 4px var(--purple)); }
+
+    /* 深色终端框 (Terminal Box) */
+    .terminal-box {
+      background: var(--bg-terminal);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      margin-top: 6px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+    }
+    .terminal-header {
+      background: rgba(255,255,255,0.03);
+      padding: 6px 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      justify-content: space-between;
+    }
+    .terminal-dots { display: flex; gap: 4px; align-items: center; }
+    .terminal-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .terminal-body {
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.5;
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    /* ========== 物理制品卡片 (Artifact Card) ========== */
+    .artifacts-container { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .artifact-card {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border-card);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .artifact-meta-row {
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .artifact-title-box { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; color: var(--success); }
+    .artifact-size { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+    
+    /* 毛玻璃内嵌代码预览器 */
+    .code-preview {
+      background: rgba(0, 0, 0, 0.25) !important;
+      margin: 0 !important;
+      padding: 10px 12px !important;
+      font-family: var(--font-mono) !important;
+      font-size: 11px !important;
+      line-height: 1.5 !important;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 0 !important;
+      border-radius: 0 0 10px 10px !important;
+    }
+    .code-preview code { font-family: var(--font-mono) !important; }
+
+    /* Diff 行级背景高亮 */
+    .diff-line-add { background: rgba(16, 185, 129, 0.12); display: block; margin: 0 -12px; padding: 0 12px; border-left: 2px solid var(--success); }
+    .diff-line-del { background: rgba(239, 68, 68, 0.12); display: block; margin: 0 -12px; padding: 0 12px; border-left: 2px solid var(--error); }
+
+    /* ========== 跨任务协作极简轻量引用 (Lite-Reference) ========== */
+    .lite-link-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px dashed rgba(99, 102, 241, 0.25);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .lite-link-bar:hover {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+    .lite-left { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+    .lite-link-icon { font-size: 12px; filter: drop-shadow(0 0 4px var(--accent-glow)); }
+    .lite-chip {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-card);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10px;
+      color: var(--success);
+      font-weight: 600;
+    }
+    .lite-action-btn {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      outline: none;
+    }
+    .lite-action-btn:hover { text-decoration: underline; color: #a5b4fc; }
+
+    /* ========== 全局右侧抽屉视觉系统 (Global Drawer) ========== */
+    .global-drawer-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5, 8, 16, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .global-drawer-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .global-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 520px;
+      background: rgba(15, 23, 42, 0.85);
+      border-left: 1px solid rgba(99, 102, 241, 0.2);
+      box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(25px);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1); /* 优雅阻尼动画 */
+    }
+    .global-drawer.visible {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-card);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .drawer-title-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .drawer-icon {
+      font-size: 18px;
+      filter: drop-shadow(0 0 5px var(--accent-glow));
+    }
+    .drawer-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .drawer-close {
+      background: transparent;
+      border: 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drawer-close:hover {
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+    }
+
+    .drawer-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .empty-board {
+      width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; color: var(--text-muted); font-size: 14px; gap: 8px;
+    }
+
+    /* ========== 阶段时间线视图 (Phase Timeline) ========== */
+    .phase-timeline { height: 100%; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+    
+    .phase-card {
+      background: var(--bg-panel); border: 1px solid var(--border-card); border-radius: 14px;
+      overflow: hidden; flex-shrink: 0; box-shadow: var(--shadow-premium);
+    }
+    .phase-card.dimmed { opacity: 0.5; }
+    .phase-header {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer;
+      background: rgba(255,255,255,0.01);
+    }
+    .phase-header:hover { background: rgba(99, 102, 241, 0.05); }
+    .phase-indicator { width: 4px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
+    .phase-body { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .phase-title-row { display: flex; align-items: center; gap: 10px; }
+    .phase-title { font-size: 14px; font-weight: 700; color: #fff; }
+    
+    .conf-badge { font-size: 9px; padding: 2px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+    .conf-high { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid var(--success-glow); }
+    .conf-medium { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid var(--warning-glow); }
+    .conf-low { background: rgba(255,255,255,0.03); color: var(--text-muted); border: 1px solid var(--border-card); }
+    
+    .phase-bar-row { display: flex; align-items: center; gap: 10px; }
+    .phase-bar { flex: 1; height: 6px; background: rgba(0,0,0,0.3); border-radius: 99px; overflow: hidden; }
+    .phase-fill { height: 100%; border-radius: 99px; }
+    .phase-meta { color: var(--text-secondary); font-size: 11px; white-space: nowrap; display: flex; gap: 12px; }
+    .phase-chevron { color: var(--text-muted); font-size: 12px; transition: transform .15s ease; }
+    .phase-card.open .phase-chevron { transform: rotate(90deg); }
+
+    .phase-steps { padding: 0 18px 14px 18px; display: none; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.1); border-top: 1px solid rgba(255,255,255,0.02); }
+    .phase-card.open .phase-steps { display: flex; }
+    .phase-step { background: rgba(30, 41, 59, 0.25); border: 1px solid var(--border-card); border-radius: 8px; padding: 8px 12px; }
+    .step-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .step-header:hover { color: var(--accent); }
+    .step-title { font-size: 12px; font-weight: 700; color: #fff; }
+    .step-right { display: flex; align-items: center; gap: 8px; }
+    .step-dur { color: var(--text-muted); font-size: 11px; }
+    
+    .step-detail { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-card); }
+    .phase-step.open .step-detail { display: block; }
+    .step-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+    .step-tool { background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 4px; padding: 2px 6px; font-size: 10px; color: var(--text-secondary); }
+    .step-reasoning { margin-top: 6px; border-left: 2px solid var(--purple); padding-left: 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+    .step-texts { margin-top: 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+    .step-artifacts { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+    .step-artifact { font-size: 11px; background: rgba(16, 185, 129, 0.05); border: 1px solid var(--success-glow); border-radius: 4px; padding: 2px 6px; color: var(--success); }
+    .step-tokens { margin-top: 6px; font-size: 10px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <!-- 1. 上传首屏 -->
+  <main id="drop-zone" class="drop-zone">
+    <div class="drop-icon">🚀</div>
+    <div>
+      <h1>opencode Session 研发故事墙</h1>
+      <p>拖入或点击上传 opencode 导出的会话 JSON 数据 (session.json)</p>
+      <div id="drop-error" class="drop-error"></div>
+    </div>
+  </main>
+
+  <!-- 2. 主应用界面 -->
+  <main id="app" class="app hidden">
+    <!-- 顶栏属性面板 -->
+    <section id="info-bar" class="info-bar">
+      <!-- 顶栏主信息 -->
+      <div class="info-row">
+        <div class="info-left">
+          <div id="info-title" class="info-title">项目名称加载中...</div>
+          <div id="info-meta" class="info-meta">SHA</div>
+        </div>
+        <div class="info-actions">
+          <div class="version-switcher">
+            <span class="switcher-label">看板规划版本:</span>
+            <select id="version-select" class="switcher-select" onchange="switchVersion(this.value)">
+              <!-- 动态注入版本 -->
+            </select>
+          </div>
+          <button id="btn-task" class="action-button active" onclick="switchView('task')">💡 TODO 看板</button>
+          <button id="btn-phase" class="action-button" onclick="switchView('phase')">⚡ 时序工作流</button>
+          <button class="action-button" onclick="clearCachedSession()" style="border-color: rgba(239,68,68,0.25); color: #fca5a5;">❌ 清除缓存</button>
+        </div>
+      </div>
+      <!-- 全局进度条 -->
+      <div class="global-progress">
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+        </div>
+        <span id="progress-label" class="progress-label">0% Done</span>
+      </div>
+    </section>
+
+    <!-- 版本对比汇总面板 -->
+    <section id="session-summary" class="session-summary">
+      <!-- 动态注入统计数据 -->
+    </section>
+
+    <!-- TODO 故事墙大看板 -->
+    <section id="task-view" class="view-container board">
+      <!-- 动态注入横向 TODO 大列 -->
+    </section>
+
+    <!-- 时序工作流视图 -->
+    <section id="phase-view" class="view-container phase-timeline hidden">
+      <!-- 动态注入时序 Phase -->
+    </section>
+  </main>
+
+  <!-- 隐藏的文件选择器 -->
+  <input id="file-input" class="hidden" type="file" accept="application/json,.json">
+
+  <!-- 全局穿透查看右侧抽屉 (Global Drawer Overlay) -->
+  <div id="global-drawer-overlay" class="global-drawer-overlay" onclick="closeDrawer()"></div>
+  <aside id="global-drawer" class="global-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-box">
+        <span class="drawer-icon">🤝</span>
+        <span class="drawer-title">跨任务协作·多重穿透透视</span>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div id="drawer-body" class="drawer-body">
+      <!-- 动态注入 Turn 气泡 -->
+    </div>
+  </aside>
+
+  <!-- Prism.js 渲染引擎 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const dropError = document.getElementById('drop-error');
+    const app = document.getElementById('app');
+    const infoBar = document.getElementById('info-bar');
+    const taskView = document.getElementById('task-view');
+    const phaseView = document.getElementById('phase-view');
+    const fileInput = document.getElementById('file-input');
+    const STORAGE_KEY = 'session-kanban:last-json';
+    const STORAGE_NAME_KEY = 'session-kanban:last-name';
+    
+    let currentView = 'task';
+    let globalSessionData = null; // 存放解析后的核心视图模型
+    let activeVersionIdx = 0;     // 当前选中的版本
+
+    dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+
+    dropZone.addEventListener('drop', async (event) => {
+      event.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = event.dataTransfer.files[0];
+      if (!file) return;
+      await loadSessionFile(file);
+    });
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (file) await loadSessionFile(file);
+      fileInput.value = '';
+    });
+
+    document.addEventListener('DOMContentLoaded', restoreCachedSession);
+
+    /* ========== 1. JSON 导入与缓存加载 ========== */
+
+    async function loadSessionFile(file) {
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (!Array.isArray(json.messages)) throw new Error('缺少 messages 数组');
+        cacheSession(text, file.name);
+        initViewModel(json);
+      } catch (error) {
+        dropError.textContent = '无法解析 session.json：' + error.message;
+      }
+    }
+
+    function restoreCachedSession() {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (!cached) return;
+      try {
+        const json = JSON.parse(cached);
+        if (!Array.isArray(json.messages)) return;
+        initViewModel(json);
+      } catch (error) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_NAME_KEY);
+      }
+    }
+
+    function cacheSession(text, name) {
+      try {
+        localStorage.setItem(STORAGE_KEY, text);
+        localStorage.setItem(STORAGE_NAME_KEY, name || 'session.json');
+      } catch (error) {
+        console.warn('Unable to cache session.json:', error);
+      }
+    }
+
+    function clearCachedSession() {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_NAME_KEY);
+      app.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+      dropError.textContent = '';
+      globalSessionData = null;
+    }
+
+    function initViewModel(json) {
+      globalSessionData = parseSession(json);
+      activeVersionIdx = globalSessionData.todoVersions.length - 1; // 默认展示最后一版最新规划
+      
+      // 切换到主应用
+      dropZone.classList.add('hidden');
+      app.classList.remove('hidden');
+      
+      renderApp();
+    }
+
+    /* ========== 2. 核心数据解析层 (百分之百保留原有的优秀算法) ========== */
+
+    function parseSession(session) {
+      const messages = session.messages || [];
+      const activeChain = extractActiveMessageChain(messages);
+      const timeline = buildTimeline(messages);
+      
+      const todoVersions = extractTodoVersions(timeline);
+      
+      const boundaries = todoVersions.map((ver, vi) => {
+        if (vi === todoVersions.length - 1) return activeChain.length;
+        const nextVer = todoVersions[vi + 1];
+        for (let mi = ver.messageIndex + 1; mi < nextVer.messageIndex; mi++) {
+          const role = (activeChain[mi]?.info?.role) || activeChain[mi]?.role;
+          if (role === 'user') return mi;
+        }
+        return nextVer.messageIndex;
+      });
+
+      for (let vi = 0; vi < todoVersions.length; vi++) {
+        const ver = todoVersions[vi];
+        const isFirstVersion = vi === 0;
+        const isLastVersion  = vi === todoVersions.length - 1;
+
+        const ownStart = isFirstVersion ? 0 : boundaries[vi - 1];
+        const ownEnd   = isLastVersion  ? activeChain.length - 1 : boundaries[vi] - 1;
+
+        let verTimeline, verMessages;
+        if (isFirstVersion) {
+          verTimeline = timeline.filter(e => e.messageIndex <= ownEnd);
+          verMessages = activeChain.slice(0, ownEnd + 1);
+        } else {
+          verTimeline = timeline.filter(e => e.messageIndex >= ownStart && e.messageIndex <= ownEnd);
+          verMessages = activeChain.slice(ownStart, ownEnd + 1);
+        }
+
+        // 调用我们重组后的“纯 TODO 实体横向列聚合分派算法”
+        const columns = groupMessagesToTodoColumns(verTimeline, ver.todos, verMessages, isFirstVersion);
+        ver.columns = columns;
+
+        const verSteps  = extractSteps(verMessages);
+        const verPhases = aggregatePhases(verSteps);
+        ver.steps  = verSteps;
+        ver.phases = verPhases;
+      }
+
+      return { session, todoVersions, activeChain, timeline };
+    }
+
+    function extractActiveMessageChain(messages) {
+      if (!messages || !messages.length) return [];
+      const idMap = new Map();
+      let prevMsg = null;
+      for (const msg of messages) {
+        const id = msg.id || msg.info?.id;
+        if (id) idMap.set(id, msg);
+        
+        const parentId = msg.parentID || msg.info?.parentID;
+        if (!parentId && msg !== messages[0] && (msg.info?.role === 'user' || msg.role === 'user')) {
+          if (prevMsg) {
+            const prevId = prevMsg.id || prevMsg.info?.id;
+            if (prevId) msg.parentID = prevId;
+          }
+        }
+        prevMsg = msg;
+      }
+      
+      const activeUserIds = new Set();
+      let current = messages[messages.length - 1];
+      while (current) {
+        const role = current.info?.role || current.role || 'unknown';
+        if (role === 'user') {
+          const id = current.id || current.info?.id;
+          if (id) activeUserIds.add(id);
+        }
+        const parentId = current.parentID || current.info?.parentID;
+        current = parentId ? idMap.get(parentId) : null;
+      }
+
+      return messages.filter((msg) => {
+        const id = msg.id || msg.info?.id;
+        if (msg.info?.role === 'user' || msg.role === 'user') {
+          return activeUserIds.has(id);
+        }
+        const parentId = msg.parentID || msg.info?.parentID;
+        return activeUserIds.has(parentId);
+      });
+    }
+
+    function buildTimeline(messages) {
+      const events = [];
+      const activeChain = extractActiveMessageChain(messages);
+      for (const [messageIndex, message] of activeChain.entries()) {
+        const role = message.info?.role || 'unknown';
+        const time = message.info?.time?.created || message.info?.time?.completed || 0;
+        for (const [partIndex, part] of (message.parts || []).entries()) {
+          const eventTime = part.time?.start || part.time?.end || time;
+          events.push({ type: part.type, role, time: eventTime, message, messageIndex, partIndex, part });
+        }
+      }
+      return events.sort((a, b) => a.time - b.time);
+    }
+
+    function extractTodoVersions(timeline) {
+      const versions = [];
+      function contentFingerprint(todos) {
+        return todos.map(t => t.content).sort().join('\n');
+      }
+      function isIncrementalUpdate(prevTodos, nextTodos) {
+        if (!prevTodos || !prevTodos.length) return false;
+        const prevContents = new Set(prevTodos.map(t => t.content));
+        let matchCount = 0;
+        for (const t of nextTodos) {
+          if (prevContents.has(t.content)) matchCount++;
+        }
+        return matchCount >= prevTodos.length * 0.8;
+      }
+      
+      for (const event of timeline) {
+        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
+          const rawTodos = event.part.state?.input?.todos;
+          if (!Array.isArray(rawTodos) || !rawTodos.length) continue;
+          
+          const todos = rawTodos.map((todo, idx) => ({ ...todo, index: idx }));
+          const fp = contentFingerprint(todos);
+          
+          const lastVer = versions.length > 0 ? versions[versions.length - 1] : null;
+          const isIncremental = lastVer && isIncrementalUpdate(lastVer.todos, todos);
+          
+          if (lastVer && (lastVer._fingerprint === fp || isIncremental)) {
+            lastVer.todos = todos;
+            lastVer.messageIndex = event.messageIndex;
+            lastVer._fingerprint = fp;
+          } else {
+            let title = '';
+            if (!lastVer) {
+              title = '首次规划';
+            } else {
+              const lastLen = lastVer.todos.length;
+              const curLen = todos.length;
+              if (curLen > lastLen) title = `新增 ${curLen - lastLen} 个任务`;
+              else if (curLen < lastLen) title = `精简 ${lastLen - curLen} 个任务`;
+              else title = '调整任务描述';
+            }
+
+            versions.push({
+              versionIndex: versions.length,
+              id: `v${versions.length + 1}`,
+              title: title,
+              messageIndex: event.messageIndex,
+              todos: todos,
+              _fingerprint: fp
+            });
+          }
+        }
+      }
+      return versions;
+    }
+
+    function extractSteps(messages) {
+      const steps = [];
+      for (let mi = 0; mi < messages.length; mi++) {
+        const msg = messages[mi];
+        const info = msg.info || {};
+        if (info.role !== 'assistant') continue;
+
+        const parts = msg.parts || [];
+        let stepStart = null, stepFinish = null;
+        for (const part of parts) {
+          if (part.type === 'step-start') stepStart = part;
+          if (part.type === 'step-finish') stepFinish = part;
+        }
+        if (!stepStart && !stepFinish) continue;
+
+        const startedAt = stepStart?.time?.start || info.time?.created || 0;
+        const endedAt = stepFinish?.time?.end || info.time?.completed || startedAt;
+
+        const step = {
+          index: steps.length,
+          messageIndex: mi,
+          startedAt,
+          endedAt,
+          duration: endedAt - startedAt,
+          finishReason: stepFinish?.reason || info.finish || '',
+          tokens: stepFinish?.tokens || info.tokens || {},
+          cost: stepFinish?.cost || info.cost || 0,
+          tools: [],
+          skills: [],
+          subagents: [],
+          reasoning: [],
+          texts: [],
+          artifacts: [],
+          rawPart: stepStart,
+          finishPart: stepFinish,
+        };
+
+        for (const part of parts) {
+          if (part.type === 'tool') {
+            if (part.tool === 'skill') step.skills.push(part);
+            else if (part.tool === 'task') step.subagents.push(part);
+            else step.tools.push(part);
+          } else if (part.type === 'reasoning') {
+            step.reasoning.push(part);
+          } else if (part.type === 'text') {
+            step.texts.push(part);
+          } else if (part.type === 'patch') {
+            for (const file of part.files || []) step.artifacts.push({ file, status: 'modified', kind: 'patch' });
+          }
+        }
+
+        for (const diff of info.summary?.diffs || []) {
+          step.artifacts.push({ file: diff.file, status: diff.status, kind: 'diff', additions: diff.additions, deletions: diff.deletions });
+        }
+
+        steps.push(step);
+      }
+      return steps;
+    }
+
+    function classifyStep(step) {
+      const titles = step.tools.map((t) => t.state?.title || '');
+      const skillNames = step.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || '');
+      const subTitles = step.subagents.map((t) => t.state?.title || '');
+      const allFiles = step.artifacts.map((a) => a.file || '');
+      const all = [...titles, ...skillNames, ...subTitles, ...allFiles].join(' ').toLowerCase();
+
+      if (all.includes('explore project')) return { phase: '项目调研与架构分析', confidence: 'high' };
+      if (all.includes('proposal.md') || all.includes('design.md') || all.includes('tasks.md'))
+        return { phase: '核心文档与方案产出', confidence: 'high' };
+      if (all.includes('todowrite') || all.includes('todos')) return { phase: '任务规划与状态管理', confidence: 'high' };
+
+      const hasSkill = (name) => skillNames.some((n) => n.toLowerCase() === name);
+      if (hasSkill('comet') && !hasSkill('comet-open') && !hasSkill('comet-design')) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (hasSkill('comet-open')) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (hasSkill('comet-design')) return { phase: '变更状态与阶段流转', confidence: 'high' };
+      if (hasSkill('brainstorming')) return { phase: '设计确认与交付准备', confidence: 'high' };
+
+      if (titles.some((t) => t.toLowerCase().includes('check for active') || t.toLowerCase().includes('preset') || t.toLowerCase().includes('check openspec'))) return { phase: '流程启动与意图识别', confidence: 'high' };
+      if (titles.some((t) => (t.toLowerCase().includes('create') && t.toLowerCase().includes('directory')) || t.toLowerCase().includes('mkdir') || t.toLowerCase().includes('comet environment'))) return { phase: '环境准备与目录创建', confidence: 'high' };
+      if (titles.some((t) => t.toLowerCase().includes('initialize comet') || t.toLowerCase().includes('comet state') || t.toLowerCase().includes('guard') || t.toLowerCase().includes('entry check') || t.toLowerCase().includes('handoff'))) return { phase: '变更状态与阶段流转', confidence: 'high' };
+
+      if (!step.tools.length && !step.skills.length && !step.subagents.length && step.texts.length)
+        return { phase: 'AI 回复与总结', confidence: 'medium' };
+      if (step.subagents.length) return { phase: '子任务执行', confidence: 'medium' };
+      if (step.skills.length) return { phase: '技能加载', confidence: 'medium' };
+      if (step.artifacts.length) return { phase: '文件变更', confidence: 'medium' };
+      return { phase: '执行步骤', confidence: 'low' };
+    }
+
+    function aggregatePhases(steps) {
+      if (!steps.length) return [];
+      const phases = [];
+      let current = null;
+
+      for (const step of steps) {
+        const { phase: title, confidence } = classifyStep(step);
+        if (!current || current.title !== title) {
+          current = {
+            title, confidence, steps: [step],
+            startedAt: step.startedAt, endedAt: step.endedAt,
+            artifacts: [], toolCount: 0, skillCount: 0, subagentCount: 0,
+          };
+          phases.push(current);
+        } else {
+          current.steps.push(step);
+          current.endedAt = step.endedAt;
+          if (confidence === 'high') current.confidence = 'high';
+        }
+        current.toolCount += step.tools.length;
+        current.skillCount += step.skills.length;
+        current.subagentCount += step.subagents.length;
+        current.artifacts.push(...step.artifacts);
+      }
+
+      for (const phase of phases) {
+        const seen = new Set();
+        phase.artifacts = phase.artifacts.filter((a) => {
+          const key = a.file;
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+      return phases;
+    }
+
+    function attachPhaseTodos(phases, todos) {
+      for (const phase of phases) {
+        phase.todos = [];
+        const stepText = phase.steps.map((s) => {
+          return [...s.tools.map((t) => t.state?.title || ''), ...s.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || ''), ...s.subagents.map((t) => t.state?.title || '')].join(' ');
+        }).join(' ').toLowerCase();
+        const stepFiles = phase.artifacts.map((a) => (a.file || '').toLowerCase());
+
+        for (const todo of todos) {
+          const todoLower = todo.content.toLowerCase();
+          if (stepFiles.some((f) => todoLower.includes(f.split('/').pop()))) {
+            phase.todos.push(todo);
+            continue;
+          }
+          const todoWords = todoLower.split(/[^a-z0-9_.-]+/).filter((w) => w.length >= 4);
+          const matches = todoWords.filter((w) => stepText.includes(w));
+          if (matches.length >= 2) phase.todos.push(todo);
+        }
+      }
+    }
+
+    /* ========== 3. 革命性的“去状态化纯 TODO 实体横向列分派聚合算法” ========== */
+
+    const STOP_WORDS = new Set([
+      '实现', '功能', '参考', '分析', '进行', '完成', '任务', '支持', '优化', '修改', '修复', '调整', '处理', '会话', '过程',
+      'implement', 'feature', 'reference', 'analyze', 'process', 'complete', 'task', 'support', 'optimize', 'modify', 'fix', 'adjust', 'handle', 'todo', 'write', 'read'
+    ]);
+
+    // 关键词加分匹配算法
+    function scoreTodoMatch(haystack, todoContent) {
+      const todo = String(todoContent || '').toLowerCase();
+      let score = 0;
+      const rules = [
+        ['directory structure', ['mkdir', 'directory structure']],
+        ['proposal.md', ['proposal.md', 'proposal']],
+        ['design.md', ['design.md', 'high-level architecture', 'design']],
+        ['tasks.md', ['tasks.md', 'todo list', 'tasks']],
+        ['.comet.yaml', ['.comet.yaml', 'comet state', 'initialize comet']],
+        ['guard', ['guard', 'transition', 'open -> design']],
+        ['design approaches', ['brainstorming', 'present design', 'approaches']],
+        ['design doc', ['design doc', 'docs/superpowers/specs']],
+        ['build phase', ['build phase', 'transition to build']]
+      ];
+      for (const [needle, terms] of rules) {
+        if (todo.includes(needle) && terms.some((term) => haystack.includes(term))) score += 4;
+      }
+      const tokens = todo.split(/[^a-z0-9\u4e00-\u9fa5_.-]+/i).filter((token) => {
+        const cleanToken = token.toLowerCase();
+        if (STOP_WORDS.has(cleanToken)) return false;
+        return /[\u4e00-\u9fa5]/.test(token) ? token.length >= 2 : token.length >= 4;
+      });
+      for (const token of tokens) {
+        if (haystack.includes(token)) score += 1;
+      }
+      return score;
+    }
+
+    function matchArtifactToTodo(file, columns) {
+      const cleanFile = file.split('/').pop().toLowerCase();
+      if (!cleanFile) return null;
+      let best = null;
+      let bestScore = 0;
+      for (const col of columns) {
+        if (col.todo.index === -1) continue; // 排除虚拟前置卡
+        const score = scoreTodoMatch(cleanFile, col.todo.content);
+        if (score > bestScore) {
+          best = col;
+          bestScore = score;
+        }
+      }
+      return bestScore >= 2 ? best : null;
+    }
+
+    // 核心大重构：纯 TODO 大列聚合算法
+    function groupMessagesToTodoColumns(timeline, todos, activeChain, hasPreEvents) {
+      const columns = [];
+      let initCard = null;
+      
+      // 1. 初始化横向列容器
+      todos.forEach((todo, idx) => {
+        columns.push({
+          todo: { ...todo, index: idx },
+          turns: [],
+          rawArtifacts: []
+        });
+      });
+
+      // 2. 检测是否有前置交互，若有，初始化第 0 尊大列：“会话初始化与前置调研”
+      const firstWriteIdx = timeline.findIndex(e => e.type === 'tool' && e.part?.tool === 'todowrite');
+      if (firstWriteIdx > 0) {
+        initCard = {
+          todo: {
+            content: "会话初始化与前置调研：明确意图并产出规划",
+            status: "completed",
+            priority: "high",
+            index: -1
+          },
+          turns: [],
+          rawArtifacts: []
+        };
+        columns.unshift(initCard);
+      }
+
+      // 按物理 messageIndex 对事件进行分组
+      const messagesGroup = new Map();
+      timeline.forEach(event => {
+        const key = event.messageIndex !== undefined ? event.messageIndex : -1;
+        if (!messagesGroup.has(key)) messagesGroup.set(key, []);
+        messagesGroup.get(key).push(event);
+      });
+
+      let currentColumn = initCard || columns[0];
+      let pendingUserEvents = [];
+      
+      // 缓存每个物理消息分指到的卡片列集合
+      const messageAssignedCols = new Map();
+
+      // 找出第一个 todowrite 规划的 message 索引，以此为前置窗口完结标志
+      let firstTodowriteMsgIdx = -1;
+      for (const [msgIdx, evts] of messagesGroup.entries()) {
+        if (evts.some(e => e.type === 'tool' && e.part?.tool === 'todowrite')) {
+          firstTodowriteMsgIdx = msgIdx;
+          break;
+        }
+      }
+
+      // 遍历每一个对话 Turn，执行高阶漏斗与多重分派
+      for (const [msgIndex, events] of messagesGroup.entries()) {
+        const isUser = events.some(e => e.role === 'user');
+        
+        if (isUser) {
+          pendingUserEvents.push(...events.filter(e => e.type === 'text'));
+          continue;
+        }
+
+        const msg = activeChain[msgIndex];
+        const parentId = msg?.parentID || msg?.info?.parentID;
+        let parentCol = null;
+        if (parentId) {
+          const parentMsgIdx = activeChain.findIndex(m => (m.id || m.info?.id) === parentId);
+          const cached = messageAssignedCols.get(parentMsgIdx);
+          if (cached && cached.length) parentCol = cached[0];
+        }
+
+        const isPreamble = initCard && (msgIndex <= firstTodowriteMsgIdx || firstTodowriteMsgIdx === -1);
+        const targetCols = new Set();
+        const devTargetCols = new Set();
+
+        const todowriteEvent = events.find(e => e.type === 'tool' && e.part?.tool === 'todowrite');
+        const hasSubstanceDev = events.some(e => 
+          e.type === 'patch' || e.type === 'diffs' || (e.type === 'tool' && e.part?.tool !== 'todowrite')
+        );
+
+        const collectDevTargets = (targetSet) => {
+          events.forEach(evt => {
+            if (evt.type === 'tool' && evt.part?.tool !== 'todowrite') {
+              const file = evt.part?.state?.input?.filePath || evt.part?.state?.metadata?.filepath;
+              const matched = file ? matchArtifactToTodo(file, columns) : null;
+              if (matched) targetSet.add(matched);
+            } else if (evt.type === 'patch' || evt.type === 'diffs') {
+              const files = evt.type === 'patch' ? (evt.part?.files || []) : (evt.diffs || []).map(d => d.file);
+              files.forEach(f => {
+                const matched = matchArtifactToTodo(f, columns);
+                if (matched) targetSet.add(matched);
+              });
+            }
+          });
+        };
+        if (isPreamble) {
+          targetCols.add(initCard);
+          if (hasSubstanceDev) {
+            collectDevTargets(devTargetCols);
+          }
+        } else if (todowriteEvent) {
+          // 状态批量更新事件！触发虚拟克隆多分派！
+          const inputTodos = todowriteEvent.part.state?.input?.todos || [];
+          const progressTodos = inputTodos.filter(t => t.status === 'in_progress' || t.status === 'completed');
+          
+          progressTodos.forEach(pt => {
+            const matched = columns.find(c => c.todo.content === pt.content);
+            if (matched) targetCols.add(matched);
+          });
+          
+          if (targetCols.size === 0) targetCols.add(columns[hasPreEvents ? 1 : 0]);
+        } else {
+          collectDevTargets(targetCols);
+        }
+
+        // 回退到时序活跃归因
+        if (targetCols.size === 0) {
+          const fallback = (currentColumn && currentColumn.todo.status === 'in_progress')
+            ? currentColumn
+            : columns.find(c => c.todo.status === 'in_progress') || currentColumn;
+          if (fallback) targetCols.add(fallback);
+        }
+
+        // 把 Turn 派发进对应的大列中，若 targetCols.size > 1，触发克隆引用标志
+        const dispatchToCols = new Set([...targetCols, ...devTargetCols]);
+        const isCrossTask = dispatchToCols.size > 1;
+        const colListOrdered = Array.from(dispatchToCols).sort((a,b) => a.todo.index - b.todo.index);
+
+        dispatchToCols.forEach(col => {
+          const isPrimary = col === colListOrdered[0]; // 排序最先的列为主宿主，其余为次要关联列
+          
+          const turn = {
+            id: `turn-${msgIndex}`,
+            isUser: false,
+            isCrossTask: isCrossTask,
+            isPrimary: isPrimary,
+            primaryColumnId: colListOrdered[0].todo.id || 'init',
+            primaryColumnTitle: colListOrdered[0].todo.content.slice(0, 16) + '...',
+            userMessages: [...pendingUserEvents],
+            aiTexts: events.filter(e => e.type === 'text' && e.role === 'assistant'),
+            reasoning: events.filter(e => e.type === 'reasoning'),
+            tools: events.filter(e => e.type === 'tool' && e.part?.tool !== 'todowrite' && e.part?.tool !== 'skill' && e.part?.tool !== 'task'),
+            skills: events.filter(e => e.type === 'tool' && e.part?.tool === 'skill'),
+            subagents: events.filter(e => e.type === 'tool' && e.part?.tool === 'task'),
+            patches: events.filter(e => e.type === 'patch'),
+            diffs: events.filter(e => e.type === 'diffs')
+          };
+
+          col.turns.push(turn);
+          
+          // 分配制品资产
+          events.forEach(evt => {
+            if (evt.type === 'patch' || evt.type === 'diffs') {
+              const files = evt.type === 'patch' ? (evt.part?.files || []) : (evt.diffs || []).map(d => d.file);
+              files.forEach(f => {
+                const matched = matchArtifactToTodo(f, columns) || col;
+                if (matched === col) {
+                  const exists = col.rawArtifacts.some(a => a.file === f);
+                  if (!exists) {
+                    col.rawArtifacts.push({
+                      file: f,
+                      status: evt.type === 'patch' ? 'touched' : 'modified',
+                      patch: evt.type === 'patch' ? '' : (evt.diffs?.find(d => d.file === f)?.patch || '')
+                    });
+                  }
+                }
+              });
+            }
+          });
+
+          if (col !== initCard) currentColumn = col;
+        });
+
+        if (dispatchToCols.size > 0) {
+          messageAssignedCols.set(msgIndex, Array.from(dispatchToCols));
+        }
+        pendingUserEvents = [];
+      }
+
+      return columns;
+    }
+
+    /* ========== 4. 前端高保真渲染引擎 ========== */
+
+    function switchView(view) {
+      currentView = view;
+      document.getElementById('btn-task').classList.toggle('active', view === 'task');
+      document.getElementById('btn-phase').classList.toggle('active', view === 'phase');
+      taskView.classList.toggle('hidden', view !== 'task');
+      phaseView.classList.toggle('hidden', view !== 'phase');
+      renderApp();
+    }
+
+    function switchVersion(val) {
+      activeVersionIdx = Number(val);
+      renderApp();
+    }
+
+    function renderApp() {
+      if (!globalSessionData) return;
+      
+      const { session, todoVersions } = globalSessionData;
+      const ver = todoVersions[activeVersionIdx] || { title: '暂无规划', todos: [], columns: [], phases: [] };
+
+      // 1. 渲染顶栏元数据
+      document.getElementById('info-title').textContent = session.info?.title || 'opencode Session Kanban';
+      document.getElementById('info-meta').innerHTML = `
+        ID: <span style="color:#fff; font-weight:700;">${session.info?.id || 'N/A'}</span> &nbsp;|&nbsp; 
+        Slug: <span style="color:#fff; font-weight:700;">${session.info?.slug || 'N/A'}</span> &nbsp;|&nbsp; 
+        版本: v${session.info?.version || '1.0'}
+      `;
+
+      // 2. 计算全局进度
+      const doneCount = ver.todos.filter(t => t.status === 'completed').length;
+      const totalCount = ver.todos.length;
+      const percent = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+      document.getElementById('progress-fill').style.width = `${percent}%`;
+      document.getElementById('progress-label').textContent = `${percent}% Done (${doneCount}/${totalCount})`;
+
+      // 3. 渲染版本选择器
+      const select = document.getElementById('version-select');
+      select.innerHTML = todoVersions.map((v, idx) => `
+        <option value="${idx}" ${idx === activeVersionIdx ? 'selected' : ''}>V${idx + 1}.0 — ${v.title}</option>
+      `).join('');
+
+      // 4. 渲染汇总统计
+      renderSummary(ver);
+
+      // 5. 渲染对应的视图
+      if (currentView === 'task') {
+        renderBoard(ver);
+      } else {
+        renderPhaseTimeline(ver);
+      }
+    }
+
+    function renderSummary(ver) {
+      const container = document.getElementById('session-summary');
+      const info = globalSessionData.session.info || {};
+      
+      container.innerHTML = `
+        <div class="summary-item">
+          <span class="summary-label">累计文件改动</span>
+          <span class="summary-value">${info.summary?.files || 0} <span class="summary-sub">个文件</span></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">累计代码行数</span>
+          <span class="summary-value" style="color:var(--success);">+${info.summary?.additions || 0} <span class="summary-sub" style="color:var(--text-secondary);">行</span></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">规划任务数</span>
+          <span class="summary-value" style="color:var(--accent);">${ver.todos.length} <span class="summary-sub" style="color:var(--text-secondary);">项</span></span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">消耗 Token</span>
+          <span class="summary-value" style="font-size: 20px; line-height: 1.5;">${((info.tokens?.total || 0) / 1000).toFixed(1)}k <span class="summary-sub">tokens</span></span>
+        </div>
+      `;
+    }
+
+    // 核心渲染：渲染去状态化的纯 TODO 横向大卡片故事流
+    function renderBoard(ver) {
+      const container = document.getElementById('task-view');
+      const cols = ver.columns || [];
+
+      if (cols.length === 0) {
+        container.innerHTML = `
+          <div class="empty-board">
+            <span style="font-size:40px;">📂</span>
+            <h3>暂未检测到规划的 TODO 列表</h3>
+            <p>该 Session 在此版本可能仅在进行初期调研。</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = cols.map(col => {
+        const isInitCol = col.todo.index === -1;
+        const statusClass = isInitCol ? 'completed' : (col.todo.status || 'pending');
+        const statusLabel = isInitCol ? 'completed' : (col.todo.status || 'todo');
+        
+        // 智能检测新增/被中途更改的任务
+        let deviationHtml = '';
+        if (!isInitCol && activeVersionIdx > 0) {
+          const firstVer = globalSessionData.todoVersions[0];
+          const exist = firstVer.todos.some(t => t.index === col.todo.index);
+          const sameDesc = firstVer.todos.some(t => t.index === col.todo.index && t.content === col.todo.content);
+          
+          if (!exist) {
+            deviationHtml = `<span class="deviation-badge new">[NEW]</span>`;
+          } else if (!sameDesc) {
+            deviationHtml = `<span class="deviation-badge modified">[MODIFIED]</span>`;
+          }
+        }
+
+        return `
+          <div class="todo-column-card ${statusClass}">
+            <!-- 表头 -->
+            <div class="column-header">
+              <div class="column-title-row">
+                <div class="column-title">
+                  <span style="color:${isInitCol ? 'var(--purple)' : 'var(--accent)'}; font-weight:800;">
+                    ${isInitCol ? '🎯' : 'T1.' + (col.todo.index + 1)}
+                  </span>
+                  <span class="title-text">${isInitCol ? '会话前置调研与规划' : col.todo.content.split(/[（(]/)[0]}</span>
+                </div>
+                <div class="column-status-badge ${statusClass}">${statusLabel}</div>
+              </div>
+              ${deviationHtml}
+              <p class="column-desc">${col.todo.content}</p>
+            </div>
+            
+            <!-- 气泡链主体 -->
+            <div class="column-body" id="col-body-${col.todo.index}">
+              ${col.turns.map(turn => renderTurnBlock(turn, col.todo.index)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Prism 动态高亮注入的代码制品
+      setTimeout(() => Prism.highlightAll(), 50);
+    }
+
+    function renderTurnBlock(turn, colIdx) {
+      // 核心防噪音逻辑：如果该消息属于批量更新，但在本列不是主列，只渲染极度折叠的 Link-Bar！
+      if (turn.isCrossTask && !turn.isPrimary) {
+        // 查找属于本列在这次批量协作中产生的制品文件
+        const col = globalSessionData.todoVersions[activeVersionIdx].columns.find(c => c.todo.index === colIdx);
+        const colPatches = turn.patches.filter(p => p.part?.files?.some(f => matchArtifactToTodo(f, [col]) === col));
+        const colDiffs = turn.diffs.filter(d => d.diffs?.some(df => matchArtifactToTodo(df.file, [col]) === col));
+        const associatedFile = colPatches[0]?.part?.files?.[0] || colDiffs[0]?.diffs?.[0]?.file || '';
+        const cleanFile = associatedFile.split('/').pop() || '代码制品';
+
+        return `
+          <div class="lite-link-bar">
+            <div class="lite-left">
+              <span class="lite-link-icon">🤝</span>
+              <span>已随 <strong>${turn.primaryColumnTitle}</strong> 批量提交自动产出:</span>
+              ${associatedFile ? `<span class="lite-chip">[Artifact: ${cleanFile}]</span>` : ''}
+            </div>
+            <button class="lite-action-btn" onclick="openDrawer('${turn.id}', ${colIdx})">穿透查看 ➜</button>
+          </div>
+        `;
+      }
+
+      // 主列/非批量列 — 正常渲染完整内容
+      let html = '';
+      
+      // 1. 用户提问
+      if (turn.userMessages.length > 0) {
+        html += `
+          <div class="message-row user">
+            <div class="bubble user-bubble">
+              <span class="bubble-label">Dev Input</span>
+              ${turn.userMessages.map(m => m.part?.text || m.text || '').join('<br/>')}
+            </div>
+            <div class="avatar user-avatar">Dev</div>
+          </div>
+        `;
+      }
+
+      // 2. AI 响应与思考链
+      const hasContent = turn.reasoning.length > 0 || turn.aiTexts.length > 0 || turn.tools.length > 0 || turn.skills.length > 0 || turn.patches.length > 0 || turn.diffs.length > 0;
+      if (hasContent) {
+        html += `
+          <div class="message-row ai">
+            <div class="avatar ai-avatar">AI</div>
+            <div class="bubble ai-bubble">
+              <span class="bubble-label">AI Assistant</span>
+              
+              <!-- 思考链 -->
+              ${turn.reasoning.map(r => `
+                <div class="reasoning-block">
+                  <div class="reasoning-title">🧠 AI Thinking...</div>
+                  ${r.part?.text || ''}
+                </div>
+              `).join('')}
+
+              <!-- 纯文本答复 -->
+              ${turn.aiTexts.map(t => `<div style="margin-top:8px; line-height:1.6;">${t.part?.text || ''}</div>`).join('')}
+
+              <!-- 🚀 Skill 工具徽章 -->
+              ${turn.skills.map(s => `
+                <div class="skills-container">
+                  <div class="skill-badge">
+                    <span class="chip-icon">⚡</span>
+                    [Skill: ${s.part?.state?.input?.name || 'comet'}] 激活运行中
+                  </div>
+                </div>
+              `).join('')}
+
+              <!-- ⚙️ 终端命令行执行框 (Output) -->
+              ${turn.tools.map(t => {
+                const cmd = t.part?.state?.input?.command || '';
+                const out = t.part?.state?.output || '';
+                if (!cmd && !out) return '';
+                return `
+                  <div class="terminal-box">
+                    <div class="terminal-header">
+                      <div class="terminal-dots">
+                        <div class="terminal-dot" style="background:#ef4444;"></div>
+                        <div class="terminal-dot" style="background:#f59e0b;"></div>
+                        <div class="terminal-dot" style="background:#10b981;"></div>
+                      </div>
+                      <span>[Skill: bash]</span>
+                    </div>
+                    <div style="padding: 8px 12px; font-size:11px; background:rgba(255,255,255,0.02); color:#a5b4fc; font-family:var(--font-mono);">$ ${cmd}</div>
+                    ${out ? `<div class="terminal-body">${out}</div>` : ''}
+                  </div>
+                `;
+              }).join('')}
+
+              <!-- 📦 物理制品透视 (Artifact Cards + 代码高亮与 Diff) -->
+              ${renderArtifacts(turn)}
+
+            </div>
+          </div>
+        `;
+      }
+
+      return `<div class="turn-block" id="${turn.id}">${html}</div>`;
+    }
+
+    function renderArtifacts(turn) {
+      // 提取物理文件 patch 或 info.summary.diffs 中的变更
+      const artifacts = [];
+      turn.patches.forEach(p => {
+        (p.part?.files || []).forEach(f => {
+          if (!artifacts.some(a => a.file === f)) artifacts.push({ file: f, kind: 'patch', patch: '' });
+        });
+      });
+      turn.diffs.forEach(d => {
+        (d.diffs || []).forEach(df => {
+          if (!artifacts.some(a => a.file === df.file)) artifacts.push({ file: df.file, kind: 'diff', patch: df.patch || '' });
+        });
+      });
+
+      if (artifacts.length === 0) return '';
+
+      return `
+        <div class="artifacts-container">
+          <div class="summary-label" style="font-size:9px; color:var(--text-muted);">📦 交付物理制品</div>
+          ${artifacts.map((art, idx) => {
+            const fileName = art.file.split('/').pop();
+            const ext = art.file.split('.').pop();
+            const isPy = ext === 'py';
+            const isSql = ext === 'sql' || ext === 'sqlTemplate';
+            const prismLang = isPy ? 'python' : (isSql ? 'sql' : 'markdown');
+            
+            // 格式化红绿 Diff 行高亮
+            let diffHtml = '';
+            if (art.patch) {
+              const lines = art.patch.split('\n');
+              diffHtml = lines.map(line => {
+                if (line.startsWith('+')) return `<span class="diff-line-add">${escapeHtml(line.slice(1))}</span>`;
+                if (line.startsWith('-')) return `<span class="diff-line-del">${escapeHtml(line.slice(1))}</span>`;
+                return `<span>${escapeHtml(line)}</span>`;
+              }).join('\n');
+            } else {
+              diffHtml = `<span style="color:var(--text-muted);">[AI 自主创建/写入完成]</span>`;
+            }
+
+            return `
+              <div class="artifact-card">
+                <div class="artifact-meta-row">
+                  <div class="artifact-title-box">
+                    <span>📄</span>
+                    <span>${fileName}</span>
+                  </div>
+                  <span class="artifact-size">${art.kind === 'diff' ? 'Diff Patch' : 'Physical File'}</span>
+                </div>
+                <pre class="code-preview"><code class="language-${prismLang}">${diffHtml}</code></pre>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    /* ========== 5. 跨列穿透查看交互 Drawer ========== */
+
+    function openDrawer(turnId, colIdx) {
+      const overlay = document.getElementById('global-drawer-overlay');
+      const drawer = document.getElementById('global-drawer');
+      const body = document.getElementById('drawer-body');
+      
+      // 查找到该原始 turn 完整节点并克隆渲染
+      const ver = globalSessionData.todoVersions[activeVersionIdx];
+      let foundTurn = null;
+      for (const col of ver.columns) {
+        const turn = col.turns.find(t => t.id === turnId);
+        if (turn) {
+          foundTurn = turn;
+          break;
+        }
+      }
+
+      if (foundTurn) {
+        // 重写 isCrossTask = false 迫使其在抽屉内以 100% 完整体完美展现！
+        const fullTurn = { ...foundTurn, isCrossTask: false };
+        body.innerHTML = renderTurnBlock(fullTurn, colIdx);
+        overlay.classList.add('visible');
+        drawer.classList.add('visible');
+        setTimeout(() => Prism.highlightAll(), 50);
+      }
+    }
+
+    function closeDrawer() {
+      document.getElementById('global-drawer-overlay').classList.remove('visible');
+      document.getElementById('global-drawer').classList.remove('visible');
+    }
+
+    /* ========== 6. 时序工作流渲染层 (Phase Timeline View) ========== */
+
+    function renderPhaseTimeline(ver) {
+      const container = document.getElementById('phase-view');
+      const phases = ver.phases || [];
+
+      if (!phases.length) {
+        container.innerHTML = `<div class="empty"><h3>暂无时序阶段数据</h3></div>`;
+        return;
+      }
+
+      container.innerHTML = phases.map((phase, pi) => {
+        const totalDuration = phase.steps.reduce((sum, s) => sum + s.duration, 0);
+        const totalCost = phase.steps.reduce((sum, s) => sum + s.cost, 0);
+        const additions = phase.artifacts.reduce((sum, a) => sum + (a.additions || 0), 0);
+        
+        return `
+          <div class="phase-card open" id="phase-${pi}">
+            <div class="phase-header" onclick="togglePhase(${pi})">
+              <div class="phase-indicator" style="background:var(--accent);"></div>
+              <div class="phase-body">
+                <div class="phase-title-row">
+                  <span class="phase-title">${phase.title}</span>
+                  <span class="conf-badge conf-${phase.confidence}">${phase.confidence} confidence</span>
+                </div>
+                <div class="phase-bar-row">
+                  <div class="phase-bar">
+                    <div class="phase-fill" style="width: 100%; background:var(--accent);"></div>
+                  </div>
+                  <div class="phase-meta">
+                    <span>⏱️ ${(totalDuration / 1000).toFixed(1)}s</span>
+                    <span>📂 ${phase.artifacts.length} 制品</span>
+                    ${additions > 0 ? `<span style="color:var(--success);">+${additions} 行</span>` : ''}
+                  </div>
+                </div>
+              </div>
+              <span class="phase-chevron">▶</span>
+            </div>
+            
+            <div class="phase-steps">
+              ${phase.steps.map((step, si) => renderStepBlock(step, si)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStepBlock(step, si) {
+      return `
+        <div class="phase-step" id="step-${si}">
+          <div class="step-header" onclick="toggleStep(${si})">
+            <div class="step-title">Turn #${step.messageIndex + 1} — AI 研发响应</div>
+            <div class="step-right">
+              <span class="step-dur">${(step.duration / 1000).toFixed(1)}s</span>
+              <span class="step-reason-badge">${step.finishReason}</span>
+            </div>
+          </div>
+          
+          <div class="step-detail" id="step-detail-${si}">
+            <!-- 激活工具 -->
+            ${step.tools.length > 0 ? `
+              <div class="step-tools">
+                ${step.tools.map(t => `<span class="step-tool">⚡ ${t.part?.tool}</span>`).join('')}
+              </div>
+            ` : ''}
+            
+            <!-- 思维链 -->
+            ${step.reasoning.length > 0 ? `
+              <div class="step-reasoning">
+                <strong>🧠 思考逻辑：</strong>${step.reasoning.map(r => r.part?.text || '').join('<br/>')}
+              </div>
+            ` : ''}
+
+            <!-- 纯文本 -->
+            ${step.texts.length > 0 ? `
+              <div class="step-texts">
+                ${step.texts.map(t => t.part?.text || '').join('<br/>')}
+              </div>
+            ` : ''}
+
+            <!-- 产生制品 -->
+            ${step.artifacts.length > 0 ? `
+              <div class="step-artifacts">
+                ${step.artifacts.map(a => `<span class="step-artifact">📄 ${a.file.split('/').pop()}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            <!-- 令牌耗费 -->
+            <div class="step-tokens">
+              Tokens: In: ${step.tokens?.input || 0} | Out: ${step.tokens?.output || 0}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function togglePhase(idx) {
+      const card = document.getElementById(`phase-${idx}`);
+      card.classList.toggle('open');
+    }
+
+    function toggleStep(idx) {
+      const step = document.getElementById(`step-${idx}`);
+      const detail = document.getElementById(`step-detail-${idx}`);
+      const isOpen = step.classList.toggle('open');
+      detail.style.display = isOpen ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>
