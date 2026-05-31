@@ -2358,9 +2358,89 @@
       selectTaskCard(index);
     };
 
+    function isPureProcessTurn(turn) {
+      if (turn.userMessages && turn.userMessages.length > 0) return false;
+      if (turn.aiTexts && turn.aiTexts.length > 0) {
+        const placeholderTexts = ['任务正在处理中。', '任务已完成。', '等待处理。', '任务待处理'];
+        const hasSubstantialText = turn.aiTexts.some(evt => {
+          const txt = (evt.part?.text || evt.text || '').trim();
+          if (!txt) return false;
+          if (placeholderTexts.includes(txt)) return false;
+          if (txt.length < 60 && /^(任务进行中|任务已完成|任务待处理|任务正在处理|等待处理)/.test(txt)) return false;
+          return true;
+        });
+        if (hasSubstantialText) return false;
+      }
+      if (turn.artifacts && turn.artifacts.length > 0) return false;
+      
+      const interactiveTools = (turn.tools || []).filter(e => {
+        const toolName = e.part?.tool || '';
+        return toolName === 'ask_user_question' || toolName === 'question' || toolName.includes('ask_question') || toolName.includes('ask_permission');
+      });
+      if (interactiveTools.length > 0) return false;
+      if (turn.skills && turn.skills.length > 0) return false;
+      if (turn.subagents && turn.subagents.length > 0) return false;
+      
+      return true;
+    }
+
     function renderTurns(card) {
       if (!card.turns.length) return renderEmptyTurn(card);
-      return card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('');
+      
+      let html = '';
+      let pendingProcessTurns = [];
+      
+      const flushProcessTurns = () => {
+        if (pendingProcessTurns.length === 0) return;
+        
+        const count = pendingProcessTurns.length;
+        const id = 'process-group-' + Math.random().toString(36).slice(2);
+        
+        const toolSummary = [];
+        pendingProcessTurns.forEach(t => {
+          const tools = [...(t.turn.tools || []), ...(t.turn.skills || []), ...(t.turn.subagents || [])];
+          tools.forEach(evt => {
+            const toolName = evt.part?.tool || '';
+            const actionSummary = toolName === 'skill' 
+              ? `📦 skill:${evt.part?.state?.input?.name || ''}` 
+              : toolName === 'task' 
+                ? `🤖 task` 
+                : `${toolIcon(toolName)} ${toolName}`;
+            if (!toolSummary.includes(actionSummary)) {
+              toolSummary.push(actionSummary);
+            }
+          });
+        });
+        
+        const toolsDesc = toolSummary.length > 0 
+          ? `，涉及动作: [${toolSummary.join(', ')}]` 
+          : '';
+          
+        html += `
+          <div class="process-collapse-container" style="margin: 10px 0; border: 1px dashed var(--border-color); border-radius: 4px; overflow: hidden; background: var(--bg-secondary);">
+            <div class="process-collapse-header" onclick="toggleProcessGroup('${id}')" style="padding: 8px 12px; font-size: 11px; color: var(--text-secondary); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: color-mix(in srgb, var(--border-color) 15%, transparent); user-select: none;">
+              <span>🔍 展开此处收拢的 ${count} 个后台静默探测过程${toolsDesc}</span>
+              <span id="icon-${id}" style="transition: transform 0.2s;">▼</span>
+            </div>
+            <div id="${id}" style="display: none; padding: 10px; border-top: 1px dashed var(--border-color); background: var(--bg-primary);">
+              ${pendingProcessTurns.map(pt => renderTurn(card, pt.turn, pt.index, card.turns.length)).join('')}
+            </div>
+          </div>
+        `;
+        pendingProcessTurns = [];
+      };
+      
+      card.turns.forEach((turn, idx) => {
+        if (isPureProcessTurn(turn)) {
+          pendingProcessTurns.push({ turn, index: idx });
+        } else {
+          flushProcessTurns();
+          html += renderTurn(card, turn, idx, card.turns.length);
+        }
+      });
+      
+      flushProcessTurns();
+      return html;
     }
 
     function renderTurn(card, turn, index, totalTurns) {
@@ -2584,6 +2664,18 @@
       }).join('');
       return `<div class="artifact-block"><div class="artifact-title">📎 制品</div><div class="artifact-list">${chips}</div></div>`;
     }
+
+    window.toggleProcessGroup = function(id) {
+      const el = document.getElementById(id);
+      const icon = document.getElementById('icon-' + id);
+      if (el) {
+        const isHidden = el.style.display === 'none' || !el.style.display;
+        el.style.display = isHidden ? 'block' : 'none';
+        if (icon) {
+          icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+      }
+    };
 
     function toggleArtifact(id) {
       const el = document.getElementById(id);
