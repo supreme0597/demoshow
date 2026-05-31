@@ -255,6 +255,43 @@
     .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
     .artifact-diff { flex-basis: 100%; width: 100%; }
     .artifact-diff.hidden { display: none; }
+    
+    /* 过程折叠区内的排版样式：展开后平铺拉直，禁止局部滚动以实现“展开全部” */
+    .process-collapse-container {
+      margin: 10px 0;
+      border: 1px dashed var(--border-color);
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--bg-secondary);
+    }
+    .process-collapse-header {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: color-mix(in srgb, var(--border-color) 15%, transparent);
+      user-select: none;
+    }
+    .process-collapse-header:hover {
+      background: color-mix(in srgb, var(--border-color) 25%, transparent);
+    }
+    .process-collapse-body {
+      padding: 10px;
+      border-top: 1px dashed var(--border-color);
+      background: var(--bg-primary);
+    }
+    /* 强力覆盖子容器的 max-height 与 overflow 限制，彻底避免过程折叠块内部滚动，实现全文本拉平平铺 */
+    .process-collapse-body pre,
+    .process-collapse-body .skill-markdown-content,
+    .process-collapse-body .tool-chip-detail pre,
+    .process-collapse-body .tool-chip-output pre {
+      max-height: none !important;
+      overflow: visible !important;
+      overflow-y: visible !important;
+    }
     /* 工具调用 chip 展开面板 */
     .tool-chip-detail {
       flex-basis: 100%;
@@ -2425,12 +2462,12 @@
           : '';
           
         html += `
-          <div class="process-collapse-container" style="margin: 10px 0; border: 1px dashed var(--border-color); border-radius: 4px; overflow: hidden; background: var(--bg-secondary);">
-            <div class="process-collapse-header" onclick="toggleProcessGroup('${id}')" style="padding: 8px 12px; font-size: 11px; color: var(--text-secondary); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: color-mix(in srgb, var(--border-color) 15%, transparent); user-select: none;">
+          <div class="process-collapse-container">
+            <div class="process-collapse-header" onclick="toggleProcessGroup('${id}')">
               <span>🔍 展开此处收拢的 ${count} 个后台静默探测过程${toolsDesc}</span>
               <span id="icon-${id}" style="transition: transform 0.2s;">▼</span>
             </div>
-            <div id="${id}" style="display: none; padding: 10px; border-top: 1px dashed var(--border-color); background: var(--bg-primary);">
+            <div id="${id}" class="process-collapse-body" style="display: none;">
               ${pendingProcessTurns.map(pt => renderTurn(card, pt.turn, pt.index, card.turns.length)).join('')}
             </div>
           </div>
