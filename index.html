@@ -1646,17 +1646,18 @@
     }
 
     const SYSTEM_LOGOS = [
-      { name: 'idesigner', label: 'ID', color: 'linear-gradient(135deg, #6366f1, #4f46e5)' },
-      { name: 'cloudm', label: 'CM', color: 'linear-gradient(135deg, #0ea5e9, #0284c7)' },
-      { name: 'codehub', label: 'CH', color: 'linear-gradient(135deg, #10b981, #059669)' },
-      { name: 'yunlong', label: 'YL', color: 'linear-gradient(135deg, #f59e0b, #d97706)' },
+      { name: 'idesigner', label: '需求', color: 'linear-gradient(135deg, #6366f1, #4f46e5)' },
+      { name: 'cloudm', label: '设计', color: 'linear-gradient(135deg, #0ea5e9, #0284c7)' },
+      { name: 'codehub', label: '编码', color: 'linear-gradient(135deg, #10b981, #059669)' },
+      { name: 'yunlong', label: '验证', color: 'linear-gradient(135deg, #f59e0b, #d97706)' },
     ];
 
     const TASK_SYSTEM_RULES = [
-      { keywords: ['proposal', 'requirement', '需求'], systems: ['idesigner'] },
-      { keywords: ['design', 'architecture', 'approach', '方案', '架构'], systems: ['idesigner', 'cloudm'] },
-      { keywords: ['code', 'coding', 'implement', '编码', '实现'], systems: ['codehub'] },
-      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '检查'], systems: ['yunlong'] },
+      { keywords: ['proposal', 'requirement', '需求', '理解', '需求理解'], systems: ['idesigner'] },
+      { keywords: ['design', 'architecture', 'approach', '方案', '架构', '方案设计'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['plan', 'tasks', '计划', '执行计划', '编写执行计划'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['code', 'coding', 'implement', '编码', '实现', 'cleancode'], systems: ['codehub'] },
+      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '检查', '编码验证'], systems: ['yunlong'] },
       { keywords: ['push', 'deploy', 'release', 'publish', 'repo', '仓库', '上库'], systems: ['codehub'] },
       { keywords: ['spec', 'specs', 'document'], systems: [] },
     ];
