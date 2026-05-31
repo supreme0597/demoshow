@@ -2859,27 +2859,8 @@
         }
       }
 
-      // AI 思考过程（若有，以下拉面板方式呈现在气泡主体中）
-      let thoughtHtml = '';
-      if (turn.reasoning && turn.reasoning.length > 0) {
-        const id = 'th-' + Math.random().toString(36).slice(2);
-        const combined = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
-        if (combined.trim()) {
-          thoughtHtml = `
-            <div class="artifact-block" style="margin-top: 6px;">
-              <div class="artifact-list">
-                <button class="artifact-chip artifact-button" type="button" style="color:var(--text-muted);" onclick="toggleArtifact('${id}')">🧠 查看 AI 思考过程 (${compact(combined.length)} 字)</button>
-              </div>
-              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; font-style: italic;">
-                <div class="skill-meta" style="font-size:12px; line-height:1.6; white-space:pre-wrap; color:var(--text-secondary);">${escapeHtml(combined)}</div>
-              </div>
-            </div>`;
-        }
-      }
-
       let finalBodyHtml = bubbleBodyHtml || '';
       finalBodyHtml += processTextsHtml;
-      finalBodyHtml += thoughtHtml;
 
       // NOTE: 为 turn 中的普通工具调用（非交互式）生成可展开的 chip 按钮列表
       // 过滤排除 todowrite 等系统工具，以及已被制品区域渲染的读写文件工具、与本轮 Skill 意图重复的底层命令行执行，防冗余重复
