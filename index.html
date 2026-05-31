@@ -1450,7 +1450,9 @@
         const textEvents = events.filter(e => e.type === 'text' && e.role === 'assistant');
         const reasoningEvents = events.filter(e => e.type === 'reasoning');
 
-        for (const card of targetCards) {
+        const allAssignedCards = new Set([...targetCards, ...developmentTargetCards]);
+        for (const card of allAssignedCards) {
+          // 对这唯一的一张 Card 仅创建一次本轮 of Turn，本轮有用户输入则传入，无则为 []
           const turn = ensureTurn(card, pendingUserEvents, null);
           turn.aiTexts.push(...textEvents);
           turn.reasoning.push(...reasoningEvents);
@@ -1478,26 +1480,6 @@
             }
           }
 
-          if (card !== initCard) {
-            currentCard = card;
-          }
-        }
-
-        for (const card of developmentTargetCards) {
-          const turn = ensureTurn(card, [], null);
-          for (const event of events) {
-            if (event.type === 'tool') {
-              if (event.part?.tool === 'todowrite') continue;
-              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, card, parentCard);
-              if (matched === card) {
-                assignToolToTurn(event, turn);
-                turn.lastEventIndexOfNonText = timeline.indexOf(event);
-              }
-            } else if (event.type === 'patch' || event.type === 'diffs') {
-              distributeArtifactEvent(event, cards, card, turn);
-              turn.lastEventIndexOfNonText = timeline.indexOf(event);
-            }
-          }
           if (card !== initCard) {
             currentCard = card;
           }
@@ -2336,65 +2318,7 @@
 
     function renderTurns(card) {
       if (!card.turns.length) return renderEmptyTurn(card);
-      if (card.turns.length <= 2) {
-        return card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('');
-      }
-      
-      const firstTurnHtml = renderTurn(card, card.turns[0], 0, card.turns.length);
-      const lastIndex = card.turns.length - 1;
-      const lastTurnHtml = renderTurn(card, card.turns[lastIndex], lastIndex, card.turns.length);
-
-      // NOTE: 关键决策点智能豁免与物理顺序动态切片折叠算法
-      // 遍历中间所有执行回合，如果某回合包含 AI 的阻塞问句（❓）或大型分析详情报告（📄），
-      // 则将其判定为核心决策点，从折叠中予以豁免，在折叠块之外以高亮平铺形式直接向用户展现。
-      // 为保持时序绝对正确，采用多折叠区物理动态分切机制，连续的普通回合会自适应聚合成独立的折叠块。
-      const middleTurns = card.turns.slice(1, -1);
-      const htmlSegments = [];
-      let pendingNormalTurns = [];
-
-      function renderPendingCollapsed() {
-        if (!pendingNormalTurns.length) return '';
-        const count = pendingNormalTurns.length;
-        const html = `
-          <details class="turns-collapsed">
-            <summary class="turns-collapsed-summary">
-              ⚙️ 展开/隐藏 ${count} 个中间执行回合
-            </summary>
-            <div class="turns-collapsed-content">
-              ${pendingNormalTurns.map(item => renderTurn(card, item.turn, item.index, card.turns.length)).join('')}
-            </div>
-          </details>
-        `;
-        pendingNormalTurns = [];
-        return html;
-      }
-
-      for (let i = 0; i < middleTurns.length; i++) {
-        const turn = middleTurns[i];
-        const turnIdx = i + 1;
-
-        // 智能侦测：是否包含阻塞问句、详情报告、AI 核心最终结论，或含有 Skill 调用
-        const hasQuestion = turn.finalText && (turn.finalText.includes('？') || turn.finalText.includes('?') || turn.finalText.includes('❓'));
-        const hasDetails = (turn.finalText || '').length > 200 || (turn.finalText || '').includes('查看详情') || (turn.finalText || '').includes('详情报告');
-        // NOTE: 如果某回合执行了 skill 操作（其自身包含 skills 或 tools 中有 skill 调用），应当从折叠中予以豁免，平铺直显
-        const hasSkills = (turn.skills && turn.skills.length > 0) || (turn.tools && turn.tools.some(t => t.part?.tool === 'skill' || t.tool === 'skill'));
-        const isActionable = hasQuestion || hasDetails || hasSkills;
-
-        if (isActionable) {
-          // 遇到豁免核心回合：先把前面累积的普通回合折叠并推入
-          htmlSegments.push(renderPendingCollapsed());
-          // 紧接着平铺渲染此豁免回合
-          htmlSegments.push(renderTurn(card, turn, turnIdx, card.turns.length));
-        } else {
-          // 普通回合：追加累积等候下一次折叠
-          pendingNormalTurns.push({ turn, index: turnIdx });
-        }
-      }
-
-      // 循环结束后，清空渲染剩余的最后一波累积普通回合
-      htmlSegments.push(renderPendingCollapsed());
-
-      return firstTurnHtml + htmlSegments.filter(Boolean).join('') + lastTurnHtml;
+      return card.turns.map((turn, index) => renderTurn(card, turn, index, card.turns.length)).join('');
     }
 
     function renderTurn(card, turn, index, totalTurns) {
