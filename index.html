@@ -1653,13 +1653,12 @@
     ];
 
     const TASK_SYSTEM_RULES = [
-      { keywords: ['proposal', 'requirement', '需求', '理解', '需求理解'], systems: ['idesigner'] },
-      { keywords: ['design', 'architecture', 'approach', '方案', '架构', '方案设计'], systems: ['idesigner', 'cloudm'] },
-      { keywords: ['plan', 'tasks', '计划', '执行计划', '编写执行计划'], systems: ['idesigner', 'cloudm'] },
-      { keywords: ['code', 'coding', 'implement', '编码', '实现', 'cleancode'], systems: ['codehub'] },
-      { keywords: ['build', 'verify', 'compile', 'lint', 'typecheck', '编译', '验证', '检查', '编码验证'], systems: ['yunlong'] },
-      { keywords: ['push', 'deploy', 'release', 'publish', 'repo', '仓库', '上库'], systems: ['codehub'] },
-      { keywords: ['spec', 'specs', 'document'], systems: [] },
+      { keywords: ['需求理解'], systems: ['idesigner'] },
+      { keywords: ['方案设计'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['编写执行计划'], systems: ['idesigner', 'cloudm'] },
+      { keywords: ['编码'], systems: ['codehub'] },
+      { keywords: ['cleancode'], systems: ['codehub'] },
+      { keywords: ['编码验证'], systems: ['yunlong'] },
     ];
 
     function getSystemLogos(content) {
