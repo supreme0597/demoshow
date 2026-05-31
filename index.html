@@ -569,6 +569,11 @@
       border: 1.5px dashed var(--accent) !important;
       position: relative;
     }
+    .ai-bubble.flagged-accurate {
+      border: 2px solid var(--success) !important;
+      background: color-mix(in srgb, var(--success) 8%, transparent) !important;
+      position: relative;
+    }
     .flag-badge {
       position: absolute;
       top: -6px;
@@ -589,6 +594,7 @@
     .flag-badge.error { background: var(--error); }
     .flag-badge.warning { background: var(--warning); }
     .flag-badge.info { background: var(--accent); }
+    .flag-badge.accurate { background: var(--success); }
     .message-row.ai {
       position: relative;
     }
@@ -2208,10 +2214,11 @@
       const className = status === 'in_progress' ? 'progress' : 'result';
       const flag = turn.flagged;
       const flagLevel = flag?.level || 'error';
-      const flagBadge = flag?.isProblematic
-        ? `<span class="flag-badge ${escapeHtml(flagLevel)}" title="${escapeAttr(buildFlagTooltip(flag))}">${flagLevel === 'error' ? '✕' : flagLevel === 'warning' ? '⚠' : 'ℹ'}</span>`
+      const hasFlag = flag?.isProblematic || flag?.isAccurate;
+      const flagBadge = hasFlag
+        ? `<span class="flag-badge ${escapeHtml(flagLevel)}" title="${escapeAttr(buildFlagTooltip(flag))}">${flagIcon(flagLevel)}</span>`
         : '';
-      const flagClass = flag?.isProblematic ? ` flagged-${flagLevel}` : '';
+      const flagClass = hasFlag ? ` flagged-${flagLevel}` : '';
 
       const { mainText, question } = splitActionableQuestion(turn.finalText);
       
@@ -2819,6 +2826,10 @@
       return null;
     }
 
+    function isExactAccuracyPraise(text) {
+      return String(text || '').trim() === '你的输出非常准确';
+    }
+
     function hasToolFailureOutput(output) {
       const text = String(output || '').toLowerCase();
       if (!text) return false;
@@ -2827,10 +2838,17 @@
     }
 
     function buildFlagTooltip(flag) {
-      if (!flag?.isProblematic || !flag.signals?.length) return '';
-      const levelLabel = { error: '错误', warning: '警告', info: '提示' }[flag.level] || '提示';
+      if ((!flag?.isProblematic && !flag?.isAccurate) || !flag.signals?.length) return '';
+      const levelLabel = { error: '错误', warning: '警告', info: '提示', accurate: '准确' }[flag.level] || '提示';
       const reasons = flag.signals.map(s => s.detail).join('; ');
       return `[${levelLabel}] ${reasons}`;
+    }
+
+    function flagIcon(level) {
+      if (level === 'error') return '✕';
+      if (level === 'warning') return '⚠';
+      if (level === 'accurate') return '✓';
+      return 'ℹ';
     }
 
     function detectErrorSignals(cards) {
@@ -2848,6 +2866,7 @@
 
           turn.flagged = {
             isProblematic: false,
+            isAccurate: false,
             level: null,
             confidence: null,
             signals: [],
@@ -2864,6 +2883,17 @@
           if (nextUserTurn) {
             const userText = getUserTextFromTurn(nextUserTurn);
             if (userText) {
+              if (isExactAccuracyPraise(userText) && findPreviousAiTurn(orderedTurns, nextUserTurn) === turn) {
+                turn.flagged.isAccurate = true;
+                turn.flagged.signals.push({
+                  type: 'user_accuracy_praise',
+                  detail: '用户下一条消息精确回复“你的输出非常准确”',
+                  keyword: '你的输出非常准确',
+                  category: 'exact_accuracy_praise',
+                  language: 'zh',
+                });
+              }
+
               const match = matchDissatisfactionKeywords(userText);
               if (match) {
                 turn.flagged.isProblematic = true;
@@ -2937,7 +2967,13 @@
         }
 
         for (const turn of card.turns) {
-          if (!turn.flagged?.isProblematic) continue;
+          if (!turn.flagged?.isProblematic && !turn.flagged?.isAccurate) continue;
+          if (turn.flagged.isAccurate && !turn.flagged.isProblematic) {
+            turn.flagged.level = 'accurate';
+            turn.flagged.confidence = 'high';
+            continue;
+          }
+
           const hasHigh = turn.flagged.signals.some(s => {
             if (s.type === 'tool_execution_error' || s.type === 'ai_self_correction') return true;
             if (s.type !== 'user_dissatisfaction') return false;
@@ -2994,6 +3030,15 @@
       const start = findTurnPosition(orderedTurns, card, fromIndex);
       if (start < 0) return null;
       for (let i = start + 1; i < orderedTurns.length; i++) {
+        if (orderedTurns[i].turn.finalText) return orderedTurns[i].turn;
+      }
+      return null;
+    }
+
+    function findPreviousAiTurn(orderedTurns, beforeTurn) {
+      const start = orderedTurns.findIndex((item) => item.turn === beforeTurn);
+      if (start < 0) return null;
+      for (let i = start - 1; i >= 0; i--) {
         if (orderedTurns[i].turn.finalText) return orderedTurns[i].turn;
       }
       return null;
