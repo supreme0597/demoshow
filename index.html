@@ -2714,19 +2714,18 @@
         }
       }
 
-      // 过程分析消息（若有，以下拉面板方式呈现在气泡主体中）
+      // 过程分析消息（直观渲染，超过 2 行自动折叠/支持展开）
       let processTextsHtml = '';
       if (turn.processTexts && turn.processTexts.length > 0) {
-        const id = 'pt-' + Math.random().toString(36).slice(2);
         const combined = turn.processTexts.map(t => t.trim()).filter(Boolean).join('\n\n');
         if (combined) {
+          const id = 'pt-' + Math.random().toString(36).slice(2);
           processTextsHtml = `
-            <div class="artifact-block" style="margin-top: 6px;">
-              <div class="artifact-list">
-                <button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">💬 查看本轮过程分析 (${turn.processTexts.length} 条)</button>
-              </div>
-              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
-                <div class="skill-meta" style="font-size:12.5px; line-height:1.6; white-space:pre-wrap;">${renderMarkdown(combined)}</div>
+            <div class="artifact-block" style="margin-top: 8px;">
+              <div class="artifact-title">💬 过程分析</div>
+              <div class="collapsible-wrapper">
+                <div id="${id}" class="collapsible-text" style="font-size:13.5px; line-height:1.65; white-space:pre-wrap; color:var(--text-secondary);">${renderMarkdown(combined)}</div>
+                <span class="link-button collapsible-btn" onclick="toggleCollapsibleText('${id}', this)">[展开]</span>
               </div>
             </div>`;
         }
