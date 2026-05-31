@@ -2566,9 +2566,22 @@
       }
 
       // NOTE: 为 turn 中的普通工具调用（非交互式）生成可展开的 chip 按钮列表
-      // 每个工具调用仅渲染一个 chip 按钮，点击后 inline 展开详情，不自动展开
+      // 过滤排除 todowrite 等系统工具，以及已被制品区域渲染的读写文件工具、与本轮 Skill 意图重复的底层命令行执行，防冗余重复
       const normalToolsForBubble = (turn.tools || []).filter(t => {
         const tool = t.part?.tool || '';
+        const isReadWrite = ['write', 'write_to_file', 'read', 'read_file', 'view_file', 'replace_file_content', 'multi_replace_file_content'].includes(tool);
+        if (isReadWrite) return false;
+
+        // 过滤跟当前 Turn 中的 skill 意图重复的底层命令行执行
+        if ((tool === 'bash' || tool === 'run_command') && (turn.skills || []).length > 0) {
+          const cmd = String(t.part?.state?.input?.command || '').toLowerCase();
+          const hasSkillTrigger = turn.skills.some(sk => {
+            const skName = String(sk.part?.state?.input?.name || sk.part?.state?.metadata?.name || '').toLowerCase();
+            return skName && (cmd.includes(skName) || cmd.includes('skills/'));
+          });
+          if (hasSkillTrigger) return false;
+        }
+
         return tool !== 'todowrite' && !['ask_user_question', 'ask_permission', 'question'].includes(tool) && !tool.includes('ask_question') && !tool.includes('ask_permission');
       });
       let toolChipsHtml = '';
@@ -2827,7 +2840,7 @@
         </div>
         <div class="skill-meta">${renderMarkdown(summary)}</div>
         ${dir ? `<div class="skill-meta">本地路径：${escapeHtml(dir)}</div>` : ''}
-        ${output ? `<details><summary style="font-size:9px;color:var(--text-secondary);cursor:pointer">查看技能完整内容</summary><div class="skill-meta" style="margin-top:6px">${renderMarkdown(stripSkillWrapper(output))}</div></details>` : ''}
+        ${output ? `<div class="skill-output-scroll" style="margin-top:8px; padding:8px; background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; max-height:250px; overflow-y:auto; font-size:11px; color:var(--text-secondary); line-height:1.5;">${renderMarkdown(stripSkillWrapper(output))}</div>` : ''}
       </div>`;
     }
 
