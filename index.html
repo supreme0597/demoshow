@@ -276,7 +276,7 @@
     /* 过程折叠区内的排版样式：展开后平铺拉直，禁止局部滚动以实现“展开全部” */
     .process-collapse-container {
       margin: 10px 0;
-      border: 1px dashed var(--border-color);
+      border: 1px dashed var(--border);
       border-radius: 4px;
       overflow: hidden;
       background: var(--bg-secondary);
@@ -289,15 +289,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: color-mix(in srgb, var(--border-color) 15%, transparent);
+      background: color-mix(in srgb, var(--border) 15%, transparent);
       user-select: none;
     }
     .process-collapse-header:hover {
-      background: color-mix(in srgb, var(--border-color) 25%, transparent);
+      background: color-mix(in srgb, var(--border) 25%, transparent);
     }
     .process-collapse-body {
       padding: 10px;
-      border-top: 1px dashed var(--border-color);
+      border-top: 1px dashed var(--border);
       background: var(--bg-primary);
     }
     /* 强力覆盖子容器的 max-height 与 overflow 限制，彻底避免过程折叠块内部滚动，实现全文本拉平平铺 */
@@ -2543,6 +2543,12 @@
       // 0. 任务开篇保护：卡片的第一个 Turn 包含“任务目标”（GoalHtml）与开篇意图，绝对不能作为纯过程折叠隐藏
       if (index === 0) return false;
 
+      // 如果本轮有任何工具调用执行失败，为暴露出错排障细节，强制保留不折叠
+      const hasFailedTool = (turn.tools || []).some(t => t.part?.state?.status === 'failed') ||
+                            (turn.skills || []).some(s => s.part?.state?.status === 'failed') ||
+                            (turn.subagents || []).some(a => a.part?.state?.status === 'failed');
+      if (hasFailedTool) return false;
+
       // 1. 用户输入交互：核心决策，必须保留气泡
       if (turn.userMessages && turn.userMessages.length > 0) return false;
       
@@ -2572,13 +2578,22 @@
         });
       }
       
-      // 5. 核心大动作判定：如果调用了高级工具能力 (skill/subagent/mcp) 且拥有实质性 AI 回复文本，才作为气泡暴露；否则如果是静默执行且没有有用文本产出，一律折叠
+      // 5. 核心大动作判定：如果调用了高级工具能力 (skill/subagent/mcp/或非只读的常规 bash 执行) 且拥有实质性 AI 回复文本，才作为气泡暴露；否则如果是静默执行且没有有用文本产出，一律折叠
       const hasCoreAction = 
         (turn.skills && turn.skills.length > 0) || 
         (turn.subagents && turn.subagents.length > 0) ||
         (turn.tools || []).some(e => {
           const toolName = e.part?.tool || '';
-          return toolName.toLowerCase().includes('mcp') || (e.part?.serverName && e.part?.serverName !== 'default');
+          if (toolName.toLowerCase().includes('mcp') || (e.part?.serverName && e.part?.serverName !== 'default')) {
+            return true;
+          }
+          // 如果是普通的命令行执行，且不是只读诊断命令，也算作核心大动作
+          if (toolName === 'bash' || toolName === 'run_command') {
+            const cmd = String(e.part?.state?.input?.command || '').trim().toLowerCase();
+            const isReadOnlyCmd = /^(tail|cat|ls|ps|grep|echo|pwd|cd)\b/.test(cmd);
+            if (!isReadOnlyCmd) return true;
+          }
+          return false;
         });
       
       if (hasCoreAction && hasSubstantialText) return false;
