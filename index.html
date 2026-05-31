@@ -2371,7 +2371,11 @@
         });
         if (hasSubstantialText) return false;
       }
-      if (turn.artifacts && turn.artifacts.length > 0) return false;
+      if (turn.artifacts && turn.artifacts.length > 0) {
+        // NOTE: 只有真正的写入/修改类制品才视作实质性进展，排除状态为 'read' 的只读文件制品，以允许读文件相关操作被折叠收起
+        const hasWriteArtifacts = turn.artifacts.some(a => a.status !== 'read');
+        if (hasWriteArtifacts) return false;
+      }
       
       const interactiveTools = (turn.tools || []).filter(e => {
         const toolName = e.part?.tool || '';
@@ -2380,6 +2384,13 @@
       if (interactiveTools.length > 0) return false;
       if (turn.skills && turn.skills.length > 0) return false;
       if (turn.subagents && turn.subagents.length > 0) return false;
+      
+      // NOTE: 识别并保留 mcp 的工具调用，非 skill、非 mcp 的底层普通工具调用则可被收缩折叠
+      const hasMcpTool = (turn.tools || []).some(e => {
+        const toolName = e.part?.tool || '';
+        return toolName.toLowerCase().includes('mcp') || (e.part?.serverName && e.part?.serverName !== 'default');
+      });
+      if (hasMcpTool) return false;
       
       return true;
     }
