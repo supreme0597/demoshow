@@ -1503,6 +1503,38 @@
         }
       }
 
+      // 🔴 严格 Epoch 时序切片自适应探测：
+      // 在开始分派前，遍历 timeline 找出所有状态由 todo 流转为 in_progress 或 completed 的跃迁时刻与目标任务
+      const epochBoundaries = [];
+      let prevStates = new Map();
+      
+      timeline.forEach(event => {
+        if (event.type === 'tool' && event.part?.tool === 'todowrite') {
+          const inputTodos = event.part.state?.input?.todos || [];
+          const msgIdx = event.messageIndex;
+          
+          let transitionedTodo = null;
+          inputTodos.forEach(t => {
+            const lastStatus = prevStates.get(t.content) || 'todo';
+            if (lastStatus === 'todo' && (t.status === 'in_progress' || t.status === 'completed')) {
+              transitionedTodo = t.content;
+            }
+            prevStates.set(t.content, t.status);
+          });
+          
+          if (transitionedTodo) {
+            epochBoundaries.push({
+              startMsgIdx: msgIdx,
+              activeTodoContent: transitionedTodo
+            });
+          }
+        }
+      });
+      
+      // 按照消息索引从小到大排序
+      epochBoundaries.sort((a, b) => a.startMsgIdx - b.startMsgIdx);
+      const isStrictEpochMode = epochBoundaries.length > 0;
+
       // 遍历每一个对话 Turn，执行高阶漏斗与多重分派
       for (const [msgIndex, events] of messagesGroup.entries()) {
         const isUser = events.some(e => e.role === 'user');
@@ -1545,32 +1577,56 @@
             }
           });
         };
-        if (isPreamble) {
-          targetCols.add(initCard);
+
+        // 🔴 智能判断是否启动严格时序分块（Strict Epoch Mode）归因
+        if (isStrictEpochMode && !isPreamble) {
+          // 找出当前 msgIndex 所属的最新的活跃纪元任务
+          const activeEpoch = [...epochBoundaries].reverse().find(eb => msgIndex >= eb.startMsgIdx);
+          let matchedCol = null;
+          if (activeEpoch) {
+            matchedCol = columns.find(c => c.todo.content === activeEpoch.activeTodoContent);
+          }
+          
+          if (matchedCol) {
+            targetCols.add(matchedCol);
+          } else {
+            // 如果处于首版 todowrite 之后的过渡区，fallback 到规划的第一个真实任务
+            targetCols.add(columns[initCard ? 1 : 0]);
+          }
+          
+          // 在严格分块下，如果有实质开发成果，我们同样收集 dev 关联大列，便于跨任务协作追踪
           if (hasSubstanceDev) {
             collectDevTargets(devTargetCols);
           }
-        } else if (todowriteEvent) {
-          // 状态批量更新事件！触发虚拟克隆多分派！
-          const inputTodos = todowriteEvent.part.state?.input?.todos || [];
-          const progressTodos = inputTodos.filter(t => t.status === 'in_progress' || t.status === 'completed');
-          
-          progressTodos.forEach(pt => {
-            const matched = columns.find(c => c.todo.content === pt.content);
-            if (matched) targetCols.add(matched);
-          });
-          
-          if (targetCols.size === 0) targetCols.add(columns[hasPreEvents ? 1 : 0]);
         } else {
-          collectDevTargets(targetCols);
-        }
+          // 传统自适应多维漏斗归因（多任务并行阶段，或前置调研会话阶段）
+          if (isPreamble) {
+            targetCols.add(initCard);
+            if (hasSubstanceDev) {
+              collectDevTargets(devTargetCols);
+            }
+          } else if (todowriteEvent) {
+            // 状态批量更新事件！触发虚拟克隆多分派！
+            const inputTodos = todowriteEvent.part.state?.input?.todos || [];
+            const progressTodos = inputTodos.filter(t => t.status === 'in_progress' || t.status === 'completed');
+            
+            progressTodos.forEach(pt => {
+              const matched = columns.find(c => c.todo.content === pt.content);
+              if (matched) targetCols.add(matched);
+            });
+            
+            if (targetCols.size === 0) targetCols.add(columns[hasPreEvents ? 1 : 0]);
+          } else {
+            collectDevTargets(targetCols);
+          }
 
-        // 回退到时序活跃归因
-        if (targetCols.size === 0) {
-          const fallback = (currentColumn && currentColumn.todo.status === 'in_progress')
-            ? currentColumn
-            : columns.find(c => c.todo.status === 'in_progress') || currentColumn;
-          if (fallback) targetCols.add(fallback);
+          // 回退到时序活跃归因
+          if (targetCols.size === 0) {
+            const fallback = (currentColumn && currentColumn.todo.status === 'in_progress')
+              ? currentColumn
+              : columns.find(c => c.todo.status === 'in_progress') || currentColumn;
+            if (fallback) targetCols.add(fallback);
+          }
         }
 
         // 把 Turn 派发进对应的大列中，若 targetCols.size > 1，触发克隆引用标志
