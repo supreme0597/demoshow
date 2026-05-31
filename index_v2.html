@@ -1999,11 +1999,25 @@
       return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    // NOTE: 智能提取交互工具反馈 output 中等号 "=" 后面的真实用户答案，剥离多余的提问与系统格式
+    // NOTE: 智能提取交互工具反馈 output 中等号 "=" 后面的真实用户答案，剥离提问与系统格式。完美支持多等号（多提问）边界。
     function getCleanUserAnswer(out) {
       if (!out) return '';
       let s = out.replace(/^User has answered your questions:\s*/i, '').trim();
       
+      // 使用全局正则表达式精准抓取所有 ="..." 模式中被双引号包裹的答案
+      const regex = /="([^"]+)"/g;
+      const matches = [];
+      let match;
+      while ((match = regex.exec(s)) !== null) {
+        matches.push(match[1].trim());
+      }
+      
+      if (matches.length > 0) {
+        // 多答案使用精美的“ ｜ ”分隔符串联展示，清晰又极富层次感
+        return matches.join(' ｜ ');
+      }
+      
+      // 兜底处理：单等号且未带双引号的情况
       if (s.includes('=')) {
         const parts = s.split('=');
         let ans = parts[parts.length - 1].trim();
