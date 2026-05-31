@@ -1298,18 +1298,21 @@
           }
           
           if (matchedCards.length > 0) {
-            // NOTE: 若这是触发跃迁的当轮消息本身，进行结项与启动的智能去重：
-            // 如果同时存在结项任务和新启动任务，则仅分发给结项任务，防止结项消息外溢成为新任务的第一条消息！
+            // 🔴 智能防外溢重构：拦截触发跃迁的当轮 todowrite 消息，
+            // 以及紧贴在其后一轮的纯文本/思考总结收尾消息（msgIndex === startMsgIdx + 1 && !hasSubstanceDev）
+            const isTransitionEpoch = msgIndex === activeEpoch.startMsgIdx;
+            const isFollowUpSummary = msgIndex === activeEpoch.startMsgIdx + 1 && !hasSubstanceDev;
+            
             let filteredCards = [];
-            if (msgIndex === activeEpoch.startMsgIdx) {
+            if (isTransitionEpoch || isFollowUpSummary) {
               if (activeEpoch.completedTransitions && activeEpoch.completedTransitions.length > 0) {
-                // 1. 优先发给刚刚被结项的已完成任务，防止其外溢
+                // 1. 优先发给刚刚被结项 of 已完成任务，防止其外溢
                 filteredCards = cards.filter(c => activeEpoch.completedTransitions.includes(c.todo.content));
               } else if (activeEpoch.activeBefore && activeEpoch.activeBefore.length > 0) {
                 // 2. 无结项但有新启动时，将规划消息分发给跃迁前就已经在进行的活跃任务（作为其开发收尾阶段）
                 filteredCards = cards.filter(c => activeEpoch.activeBefore.includes(c.todo.content));
               } else if (initCard) {
-                // 3. 都没有且前置调研卡片存在时，归宿到前置调研卡片
+                // 3. 🛡️ 前置调研卡片兜底重定向，承接首版规划后的总结消息
                 filteredCards = [initCard];
               } else {
                 filteredCards = matchedCards;
