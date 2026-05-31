@@ -2565,27 +2565,7 @@
     function renderTurnTraceability(turn) {
       const nodes = [];
 
-      // 1. 完整对话节点
-      const chatRows = [
-        ...(turn.userMessages || []).map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)) })),
-        ...(turn.aiTexts || []).map((event) => ({ role: 'AI', text: partText(event.part) }))
-      ];
-      if (chatRows.length) {
-        const content = chatRows.map(row => `### 💬 [${row.role}]\n${row.text}`).join('\n\n');
-        const detailId = registerDetailPayload({
-          title: '💬 完整对话详情',
-          html: `<div style="padding:4px; line-height:1.65;">${renderMarkdown(content)}</div>`,
-          kind: 'chat'
-        });
-        nodes.push(`
-          <div class="timeline-node chat" 
-               style="cursor:pointer;"
-               onclick="openRegisteredDetail('${detailId}', this)">
-            <span>💬</span>
-          </div>`);
-      }
-
-      // 2. 思考过程节点
+      // 1. 思考过程节点
       if (turn.reasoning && turn.reasoning.length) {
         const thoughtContent = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
         if (thoughtContent.trim()) {
@@ -2740,23 +2720,6 @@
       return `<div class="artifact-block"><div class="artifact-title">📦 Skill 调用</div><div class="artifact-list">${chips}</div></div>`;
     }
 
-    function renderTurnConversationTrace(turn) {
-      const rows = [
-        ...turn.userMessages.map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)), raw: partText(event.part) })),
-        ...turn.aiTexts.map((event) => ({ role: 'AI', text: partText(event.part) }))
-      ];
-      if (!rows.length) return '';
-      return `<details class="nested"><summary>💬 完整对话 · ${rows.length}条</summary><div class="nested-content">${rows.map((row) => `<div class="inline-message">[${row.role}] ${renderLongText(row.text, 90)}${row.raw && row.raw !== row.text ? `<details><summary>查看原始输入</summary><pre class="diff">${escapeHtml(row.raw)}</pre></details>` : ''}</div>`).join('')}</div></details>`;
-    }
-
-    function renderConversationTrace(card) {
-      const rows = [
-        ...card.userTexts.map((event) => ({ role: '用户', text: cleanUserInput(partText(event.part)), raw: partText(event.part) })),
-        ...card.aiTexts.map((event) => ({ role: 'AI', text: partText(event.part) }))
-      ];
-      if (!rows.length) return '';
-      return `<details class="nested"><summary>💬 完整对话 · ${rows.length}条</summary><div class="nested-content">${rows.map((row) => `<div class="inline-message">[${row.role}] ${renderLongText(row.text, 90)}${row.raw && row.raw !== row.text ? `<details><summary>查看原始输入</summary><pre class="diff">${escapeHtml(row.raw)}</pre></details>` : ''}</div>`).join('')}</div></details>`;
-    }
 
     function renderNested(title, events, renderFn) {
       if (!events.length) return '';
