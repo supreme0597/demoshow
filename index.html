@@ -460,7 +460,109 @@
       background: var(--border);
       border-radius: 2px;
     }
-    
+    .detail-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.42);
+    }
+    .detail-modal-backdrop.hidden { display: none; }
+    .detail-modal {
+      width: min(92vw, 1800px);
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .detail-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .detail-modal-title {
+      min-width: 0;
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 750;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .detail-modal-close {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .detail-modal-close:hover,
+    .detail-modal-close:focus-visible {
+      border-color: var(--accent);
+      color: var(--accent);
+      outline: none;
+    }
+    .detail-modal-body {
+      min-height: 0;
+      max-width: 100%;
+      overflow: auto;
+      padding: 14px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .detail-modal-body pre,
+    .detail-modal-body code,
+    .detail-modal-body .tool-chip-cmd,
+    .detail-modal-body .tool-chip-output,
+    .detail-modal-body .skill-box,
+    .detail-modal-body .skill-meta,
+    .detail-modal-body .skill-output-scroll {
+      max-width: 100%;
+      min-width: 0;
+    }
+    .detail-modal-body pre,
+    .detail-modal-body .tool-chip-cmd,
+    .detail-modal-body .tool-chip-output pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .detail-modal-body .tool-chip-output {
+      overflow: auto;
+    }
+    .detail-modal-body pre.diff,
+    .detail-modal-body .tool-chip-output,
+    .detail-modal-body .tool-chip-output pre,
+    .detail-modal-body .skill-output-scroll {
+      max-height: none !important;
+    }
+    .detail-modal-body .markdown-table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .detail-modal-body .markdown-table th,
+    .detail-modal-body .markdown-table td {
+      overflow-wrap: anywhere;
+    }
+     
     /* Skill 及其内嵌 Markdown 排版美化 */
     .skill-box {
       margin: 8px 0;
@@ -693,7 +795,7 @@
   </style>
 </head>
 <body>
-  <main id="drop-zone" class="drop-zone">
+  <main id="drop-zone" class="drop-zone" tabindex="-1">
     <div>
       <h1>Session Kanban</h1>
       <p>拖入 opencode 导出的 session.json</p>
@@ -701,12 +803,21 @@
     </div>
   </main>
 
-  <main id="app" class="app hidden">
+  <main id="app" class="app hidden" tabindex="-1">
     <section id="info-bar"></section>
     <section id="phase-view" class="view-container phase-timeline"></section>
     <section id="task-view" class="view-container board hidden"></section>
   </main>
   <input id="file-input" class="hidden" type="file" accept="application/json,.json">
+  <div id="detail-modal-backdrop" class="detail-modal-backdrop hidden">
+    <section id="detail-modal" class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title" tabindex="-1">
+      <header class="detail-modal-header">
+        <h2 id="detail-modal-title" class="detail-modal-title">详情</h2>
+        <button class="detail-modal-close" type="button" aria-label="关闭详情" onclick="closeDetailModal()">×</button>
+      </header>
+      <div id="detail-modal-body" class="detail-modal-body">暂无详情</div>
+    </section>
+  </div>
 
   <script>
     const dropZone = document.getElementById('drop-zone');
@@ -716,12 +827,18 @@
     const phaseView = document.getElementById('phase-view');
     const taskView = document.getElementById('task-view');
     const fileInput = document.getElementById('file-input');
+    const detailModalBackdrop = document.getElementById('detail-modal-backdrop');
+    const detailModal = document.getElementById('detail-modal');
+    const detailModalTitle = document.getElementById('detail-modal-title');
+    const detailModalBody = document.getElementById('detail-modal-body');
+    const detailPayloadRegistry = new Map();
     const STORAGE_KEY = 'session-kanban:last-json';
     const STORAGE_NAME_KEY = 'session-kanban:last-name';
     let currentView = 'task';
     let viewModelCache = null;
     let selectedCardIndex = 0;
     let projectRootPrefix = '';
+    let lastDetailTrigger = null;
 
     dropZone.addEventListener('dragover', (event) => {
       event.preventDefault();
@@ -747,6 +864,14 @@
     });
 
     document.addEventListener('DOMContentLoaded', restoreCachedSession);
+    detailModalBackdrop.addEventListener('click', (event) => {
+      if (event.target === detailModalBackdrop) closeDetailModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !detailModalBackdrop.classList.contains('hidden')) {
+        closeDetailModal();
+      }
+    });
 
     /* ========== Session Loading ========== */
 
@@ -786,6 +911,7 @@
     }
 
     function clearCachedSession() {
+      clearDetailPayloads();
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_NAME_KEY);
       app.classList.add('hidden');
@@ -2117,6 +2243,7 @@
 
     function renderApp(viewModel) {
       viewModelCache = viewModel;
+      clearDetailPayloads();
       dropZone.classList.add('hidden');
       app.classList.remove('hidden');
       const allTodos = viewModel.todos.length ? viewModel.todos : viewModel.cards.map((c) => c.todo);
@@ -2682,7 +2809,11 @@
       let bubbleBodyHtml = '';
       if (!isPlaceholderText) {
         if (question) {
-          const id = 'details-doc-' + Math.random().toString(36).slice(2);
+          const detailId = mainText ? registerDetailPayload({
+            title: '详情报告 (Markdown)',
+            html: `<div class="skill-meta">${renderMarkdown(mainText)}</div>`,
+            kind: 'markdown-report'
+          }) : '';
           bubbleBodyHtml = `
             <div class="action-question-box">
               <span class="question-emoji">❓</span>
@@ -2691,10 +2822,7 @@
             ${mainText ? `
               <div class="artifact-block" style="margin: 6px 0 2px 0;">
                 <div class="artifact-list">
-                  <span class="artifact-chip" onclick="toggleArtifact('${id}')" style="cursor:pointer; font-weight:700;">📄 查看详情报告 (Markdown)</span>
-                </div>
-                <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
-                  <div class="skill-meta">${renderMarkdown(mainText)}</div>
+                  <span class="artifact-chip" onclick="openRegisteredDetail('${detailId}', this)" style="cursor:pointer; font-weight:700;">📄 查看详情报告 (Markdown)</span>
                 </div>
               </div>` : ''}
           `;
@@ -2779,13 +2907,14 @@
           const title = t.part?.state?.title || t.part?.state?.input?.description || t.part?.state?.metadata?.description || tool;
           const cmd = t.part?.state?.input?.command || t.part?.state?.input?.filePath || t.part?.state?.metadata?.filepath || '';
           const output = t.part?.state?.output || '';
-          const id = 'tc-' + Math.random().toString(36).slice(2);
           const icon = toolIcon(tool);
           const shortTitle = title.length > 40 ? title.slice(0, 38) + '…' : title;
-          const outputHtml = output
-            ? `<pre style="margin:0; white-space:pre-wrap; word-break:break-all; font-size:10.5px; color:#a7f3d0; line-height:1.5; max-height:200px; overflow-y:auto;">${escapeHtml(String(output).slice(0, 3000))}</pre>`
-            : `<span style="color:var(--text-muted); font-style:italic; font-size:11px;">[执行完成，无输出]</span>`;
-          return `<button class="artifact-chip artifact-button" type="button" onclick="toggleToolChip('${id}')">${icon} ${escapeHtml(shortTitle)}</button><div id="${id}" class="tool-chip-detail hidden"><div class="tool-chip-cmd">${cmd ? `<span style="color:#a5b4fc;">$ </span>${escapeHtml(cmd)}` : `<span style="color:var(--text-muted);">[${escapeHtml(tool)}]</span>`}</div><div class="tool-chip-output">${outputHtml}</div></div>`;
+          const detailId = registerDetailPayload({
+            title: `工具调用详情：${title || tool}`,
+            html: renderToolChipDetail(tool, cmd, output),
+            kind: 'tool-call'
+          });
+          return `<button class="artifact-chip artifact-button" type="button" onclick="openRegisteredDetail('${detailId}', this)">${icon} ${escapeHtml(shortTitle)}</button>`;
         }).join('');
         toolChipsHtml = `<div class="artifact-block" style="margin-top:6px;"><div class="artifact-title">🛠️ 工具调用</div><div class="artifact-list">${chips}</div></div>`;
       }
@@ -2798,8 +2927,13 @@
       const chips = artifacts.map((artifact) => {
         const label = `${artifactIcon(artifact.status)} ${escapeHtml(shortPath(artifact.file))}`;
         if (!artifact.patch) return `<span class="artifact-chip">${label}</span>`;
-        const id = 'artifact-' + Math.random().toString(36).slice(2);
-        return `<button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">${label}</button><div id="${id}" class="artifact-diff hidden"><pre class="diff">${escapeHtml(artifact.patch)}</pre></div>`;
+        const artifactTitle = shortPath(artifact.file) || '未命名制品';
+        const detailId = registerDetailPayload({
+          title: `制品详情：${artifactTitle}`,
+          html: `<pre class="diff">${escapeHtml(artifact.patch)}</pre>`,
+          kind: 'artifact'
+        });
+        return `<button class="artifact-chip artifact-button" type="button" onclick="openRegisteredDetail('${detailId}', this)">${label}</button>`;
       }).join('');
       return `<div class="artifact-block"><div class="artifact-title">📎 制品</div><div class="artifact-list">${chips}</div></div>`;
     }
@@ -2816,9 +2950,98 @@
       }
     };
 
+    function renderToolChipOutput(output) {
+      return output
+        ? `<pre style="margin:0; white-space:pre-wrap; word-break:break-all; font-size:10.5px; color:#a7f3d0; line-height:1.5; max-height:200px; overflow-y:auto;">${escapeHtml(String(output).slice(0, 3000))}</pre>`
+        : `<span style="color:var(--text-muted); font-style:italic; font-size:11px;">[执行完成，无输出]</span>`;
+    }
+
+    function renderToolChipDetail(tool, cmd, output) {
+      return `<div class="tool-chip-detail"><div class="tool-chip-cmd">${cmd ? `<span style="color:#a5b4fc;">$ </span>${escapeHtml(cmd)}` : `<span style="color:var(--text-muted);">[${escapeHtml(tool)}]</span>`}</div><div class="tool-chip-output">${renderToolChipOutput(output)}</div></div>`;
+    }
+
     function toggleArtifact(id) {
       const el = document.getElementById(id);
       if (el) el.classList.toggle('hidden');
+    }
+
+    function normalizeDetailPayload(payload) {
+      const safePayload = payload && typeof payload === 'object' ? payload : {};
+      return {
+        title: safePayload.title ? String(safePayload.title) : '详情',
+        html: safePayload.html ? String(safePayload.html) : '暂无详情',
+        kind: safePayload.kind ? String(safePayload.kind) : 'detail'
+      };
+    }
+
+    function generateDetailPayloadId() {
+      let id = '';
+      do {
+        id = 'detail-' + Math.random().toString(36).slice(2, 10);
+      } while (detailPayloadRegistry.has(id));
+      return id;
+    }
+
+    function storeDetailPayload(id, payload) {
+      const safeId = String(id || '');
+      if (!/^[a-zA-Z0-9_-]+$/.test(safeId)) return '';
+      detailPayloadRegistry.set(safeId, normalizeDetailPayload(payload));
+      return safeId;
+    }
+
+    function registerDetailPayload(payload) {
+      return storeDetailPayload(generateDetailPayloadId(), payload);
+    }
+
+    function openRegisteredDetail(id, triggerElement) {
+      const safeId = String(id || '');
+      if (!/^[a-zA-Z0-9_-]+$/.test(safeId)) return false;
+      const payload = detailPayloadRegistry.get(safeId);
+      if (!payload) {
+        openDetailModal({ title: '详情', html: '暂无详情', kind: 'missing' }, triggerElement);
+        return false;
+      }
+      openDetailModal(payload, triggerElement);
+      return true;
+    }
+
+    function openDetailModal(payload, triggerElement) {
+      const detail = normalizeDetailPayload(payload);
+      lastDetailTrigger = triggerElement && typeof triggerElement.focus === 'function' ? triggerElement : document.activeElement;
+      if (typeof hideTimelineTooltip === 'function') hideTimelineTooltip(true);
+      detailModal.dataset.kind = detail.kind;
+      detailModalTitle.textContent = detail.title;
+      detailModalBody.innerHTML = detail.html || '暂无详情';
+      detailModalBackdrop.classList.remove('hidden');
+      const closeButton = detailModal.querySelector('.detail-modal-close');
+      if (closeButton) {
+        closeButton.focus({ preventScroll: true });
+      } else {
+        detailModal.focus({ preventScroll: true });
+      }
+    }
+
+    function closeDetailModal() {
+      const wasOpen = !detailModalBackdrop.classList.contains('hidden');
+      detailModalBackdrop.classList.add('hidden');
+      detailModal.removeAttribute('data-kind');
+      detailModalTitle.textContent = '详情';
+      detailModalBody.innerHTML = '';
+      if (!wasOpen) return;
+      const trigger = lastDetailTrigger;
+      lastDetailTrigger = null;
+      if (trigger && document.contains(trigger) && typeof trigger.focus === 'function') {
+        trigger.focus({ preventScroll: true });
+      } else if (app && !app.classList.contains('hidden')) {
+        app.focus({ preventScroll: true });
+      } else {
+        dropZone.focus({ preventScroll: true });
+      }
+    }
+
+    function clearDetailPayloads() {
+      detailPayloadRegistry.clear();
+      closeDetailModal();
     }
 
     // NOTE: 工具调用详情面板开关 - 点击 chip 按钮时展开/收起对应的 tool-chip-detail
@@ -2981,8 +3204,12 @@
         const part = event.part || {};
         const state = part.state || {};
         const name = state.input?.name || state.metadata?.name || 'skill';
-        const id = 'skill-b-' + Math.random().toString(36).slice(2);
-        return `<button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">📦 ${escapeHtml(name)}</button><div id="${id}" class="artifact-diff hidden">${renderSkillTool(part)}</div>`;
+        const detailId = registerDetailPayload({
+          title: `技能详情：${name}`,
+          html: renderSkillTool(part),
+          kind: 'skill'
+        });
+        return `<button class="artifact-chip artifact-button" type="button" onclick="openRegisteredDetail('${detailId}', this)">📦 ${escapeHtml(name)}</button>`;
       }).join('');
       return `<div class="artifact-block"><div class="artifact-title">📦 Skill 调用</div><div class="artifact-list">${chips}</div></div>`;
     }
@@ -3503,14 +3730,23 @@
       showTimelineTooltip(element, title, meta, content);
     }
 
-    function hideTimelineTooltip() {
-      tooltipTimeout = setTimeout(() => {
+    function hideTimelineTooltip(immediate = false) {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+      }
+      const hide = () => {
         const tooltip = document.getElementById('global-timeline-tooltip');
         if (tooltip) {
           tooltip.classList.remove('visible');
           tooltip.style.visibility = 'hidden';
         }
-      }, 120);
+      };
+      if (immediate) {
+        hide();
+        return;
+      }
+      tooltipTimeout = setTimeout(hide, 120);
     }
   </script>
 </body>
