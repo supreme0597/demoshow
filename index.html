@@ -310,68 +310,7 @@
       box-shadow: 0 3px 10px rgba(0,0,0,0.12);
     }
     
-    /* 全局悬浮 Tooltip 样式，直接挂载到 body 下，避免被 card overflow 裁切 */
-    .global-timeline-tooltip {
-      position: fixed;
-      width: 300px;
-      max-height: 220px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-      padding: 10px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      pointer-events: none;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.15s ease, visibility 0.15s ease;
-    }
-    .global-timeline-tooltip.visible {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-    
-    .tooltip-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 4px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .tooltip-title {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .tooltip-meta {
-      font-size: 9px;
-      color: var(--text-tertiary);
-    }
-    .tooltip-content {
-      overflow-y: auto;
-      max-height: 140px;
-      font-size: 10.5px;
-      line-height: 1.5;
-      color: var(--text-secondary);
-      background: var(--bg-primary);
-      border-radius: 6px;
-      padding: 6px;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    .tooltip-content::-webkit-scrollbar {
-      width: 4px;
-    }
-    .tooltip-content::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
-    }
+
     .detail-modal-backdrop {
       position: fixed;
       inset: 0;
@@ -2562,7 +2501,6 @@
     function openDetailModal(payload, triggerElement) {
       const detail = normalizeDetailPayload(payload);
       lastDetailTrigger = triggerElement && typeof triggerElement.focus === 'function' ? triggerElement : document.activeElement;
-      if (typeof hideTimelineTooltip === 'function') hideTimelineTooltip(true);
       detailModal.dataset.kind = detail.kind;
       detailModalTitle.textContent = detail.title;
       detailModalBody.innerHTML = detail.html || '暂无详情';
@@ -2634,7 +2572,6 @@
       ];
       if (chatRows.length) {
         const content = chatRows.map(row => `### 💬 [${row.role}]\n${row.text}`).join('\n\n');
-        const tooltipContent = chatRows.map(row => `[${row.role}] ${row.text}`).join('\n\n');
         const detailId = registerDetailPayload({
           title: '💬 完整对话详情',
           html: `<div style="padding:4px; line-height:1.65;">${renderMarkdown(content)}</div>`,
@@ -2643,11 +2580,6 @@
         nodes.push(`
           <div class="timeline-node chat" 
                style="cursor:pointer;"
-               data-tooltip-title="💬 完整对话" 
-               data-tooltip-meta="${chatRows.length} 条" 
-               data-tooltip-content="${escapeHtml(tooltipContent)}" 
-               onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()"
                onclick="openRegisteredDetail('${detailId}', this)">
             <span>💬</span>
           </div>`);
@@ -2657,7 +2589,6 @@
       if (turn.reasoning && turn.reasoning.length) {
         const thoughtContent = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
         if (thoughtContent.trim()) {
-          const charCount = thoughtContent.length;
           const detailId = registerDetailPayload({
             title: '🧠 思考过程详情',
             html: `<div style="padding:4px; line-height:1.65; white-space:pre-wrap;">${renderMarkdown(thoughtContent)}</div>`,
@@ -2666,11 +2597,6 @@
           nodes.push(`
             <div class="timeline-node thought" 
                  style="cursor:pointer;"
-                 data-tooltip-title="🧠 思考过程" 
-                 data-tooltip-meta="${compact(charCount)} 字" 
-                 data-tooltip-content="${escapeHtml(thoughtContent)}" 
-                 onmouseenter="showTimelineTooltipFromData(this)" 
-                 onmouseleave="hideTimelineTooltip()"
                  onclick="openRegisteredDetail('${detailId}', this)">
               <span>🧠</span>
             </div>`);
@@ -2688,11 +2614,6 @@
         nodes.push(`
           <div class="timeline-node chat" 
                style="cursor:pointer;"
-               data-tooltip-title="🤖 过程消息" 
-               data-tooltip-meta="${turn.processTexts.length} 次" 
-               data-tooltip-content="${escapeHtml(processContent)}" 
-               onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()"
                onclick="openRegisteredDetail('${detailId}', this)">
             <span>🤖</span>
           </div>`);
@@ -2727,8 +2648,6 @@
           icon = '💻';
         }
         
-        const tooltipContent = `工具: ${toolName}\n描述: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
-        
         const cmd = part.state?.input?.command || part.state?.input?.CommandLine || part.state?.input?.CommandLineString || '';
         const toolContentHtml = `
           <div style="font-size:13.5px; margin-bottom:12px; line-height:1.6;">
@@ -2748,11 +2667,6 @@
         nodes.push(`
           <div class="timeline-node ${classType}" 
                style="cursor:pointer;"
-               data-tooltip-title="${icon} 工具: ${escapeHtml(toolName)}" 
-               data-tooltip-meta="工具调用" 
-               data-tooltip-content="${escapeHtml(tooltipContent)}" 
-               onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()"
                onclick="openRegisteredDetail('${detailId}', this)">
             <span>${icon}</span>
           </div>`);
@@ -2764,7 +2678,6 @@
         const part = agentEvent.part || {};
         const title = part.state?.title || 'subagent';
         const output = part.state?.output || part.state?.metadata?.output || '';
-        const tooltipContent = `子代理: ${title}${output ? `\n\n[输出结果]\n${output}` : ''}`;
 
         const agentContentHtml = `
           <div style="font-size:13.5px; margin-bottom:12px; line-height:1.6;">
@@ -2782,11 +2695,6 @@
         nodes.push(`
           <div class="timeline-node agent" 
                style="cursor:pointer;"
-               data-tooltip-title="🤖 子代理: ${escapeHtml(title)}" 
-               data-tooltip-meta="子代理协作" 
-               data-tooltip-content="${escapeHtml(tooltipContent)}" 
-               onmouseenter="showTimelineTooltipFromData(this)" 
-               onmouseleave="hideTimelineTooltip()"
                onclick="openRegisteredDetail('${detailId}', this)">
             <span>🤖</span>
           </div>`);
@@ -3270,102 +3178,6 @@
       return null;
     }
 
-    // 全局 Tooltip 辅助控制逻辑
-    let tooltipTimeout = null;
-
-    function showTimelineTooltip(element, title, meta, content) {
-      if (tooltipTimeout) {
-        clearTimeout(tooltipTimeout);
-        tooltipTimeout = null;
-      }
-      
-      let tooltip = document.getElementById('global-timeline-tooltip');
-      if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'global-timeline-tooltip';
-        tooltip.className = 'global-timeline-tooltip';
-        tooltip.innerHTML = `
-          <div class="tooltip-header">
-            <span id="global-tooltip-title" class="tooltip-title"></span>
-            <span id="global-tooltip-meta" class="tooltip-meta"></span>
-          </div>
-          <div id="global-tooltip-content" class="tooltip-content"></div>
-        `;
-        document.body.appendChild(tooltip);
-      }
-
-      const titleEl = document.getElementById('global-tooltip-title');
-      const metaEl = document.getElementById('global-tooltip-meta');
-      const contentEl = document.getElementById('global-tooltip-content');
-
-      titleEl.textContent = title;
-      metaEl.textContent = meta;
-      contentEl.textContent = content;
-
-      tooltip.style.display = 'flex';
-      tooltip.style.visibility = 'hidden';
-      tooltip.classList.add('visible');
-      
-      const rect = element.getBoundingClientRect();
-      const tooltipWidth = tooltip.offsetWidth || 300;
-      const tooltipHeight = tooltip.offsetHeight || 150;
-
-      // 默认在节点上方居中弹出
-      let left = rect.left + (rect.width - tooltipWidth) / 2;
-      let top = rect.top - tooltipHeight - 8;
-
-      // 防止左右溢出屏幕可视区域
-      if (left < 12) {
-        left = 12;
-      } else if (left + tooltipWidth > window.innerWidth - 12) {
-        left = window.innerWidth - tooltipWidth - 12;
-      }
-
-      // 防止冲顶裁剪，如果上方空间不足则向下弹出
-      if (top < 12) {
-        top = rect.bottom + 8;
-      }
-
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${top}px`;
-      tooltip.style.visibility = 'visible';
-
-      tooltip.onmouseenter = () => {
-        if (tooltipTimeout) {
-          clearTimeout(tooltipTimeout);
-          tooltipTimeout = null;
-        }
-      };
-      tooltip.onmouseleave = () => {
-        hideTimelineTooltip();
-      };
-    }
-
-    function showTimelineTooltipFromData(element) {
-      const title = element.getAttribute('data-tooltip-title') || '';
-      const meta = element.getAttribute('data-tooltip-meta') || '';
-      const content = element.getAttribute('data-tooltip-content') || '';
-      showTimelineTooltip(element, title, meta, content);
-    }
-
-    function hideTimelineTooltip(immediate = false) {
-      if (tooltipTimeout) {
-        clearTimeout(tooltipTimeout);
-        tooltipTimeout = null;
-      }
-      const hide = () => {
-        const tooltip = document.getElementById('global-timeline-tooltip');
-        if (tooltip) {
-          tooltip.classList.remove('visible');
-          tooltip.style.visibility = 'hidden';
-        }
-      };
-      if (immediate) {
-        hide();
-        return;
-      }
-      tooltipTimeout = setTimeout(hide, 120);
-    }
   </script>
 </body>
 </html>
