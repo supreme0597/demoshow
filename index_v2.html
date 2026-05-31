@@ -1515,8 +1515,8 @@
           
           let transitionedTodo = null;
           inputTodos.forEach(t => {
-            const lastStatus = prevStates.get(t.content) || 'todo';
-            if (lastStatus === 'todo' && (t.status === 'in_progress' || t.status === 'completed')) {
+            const lastStatus = prevStates.get(t.content) || 'pending';
+            if ((lastStatus === 'pending' || lastStatus === 'todo') && (t.status === 'in_progress' || t.status === 'completed')) {
               transitionedTodo = t.content;
             }
             prevStates.set(t.content, t.status);
