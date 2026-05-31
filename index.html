@@ -2259,7 +2259,7 @@
       return `<section class="turn-block">
         <div class="artifact-title">Turn ${index + 1}</div>
         ${goalHtml}
-        ${turn.userMessages.length ? turn.userMessages.map((event) => renderUserBubble(partText(event.part))).join('') : ''}
+        ${turn.userMessages.length ? renderUserBubble(turn.userMessages.map((event) => partText(event.part)).join('\n')) : ''}
         ${renderTurnFinalBubble(card, turn, isLastTurn)}
         ${feedbackBubbles}
       </section>`;
