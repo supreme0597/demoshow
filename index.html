@@ -229,40 +229,45 @@
       .task-split { grid-template-columns: 1fr; grid-template-rows: minmax(140px, 34%) minmax(0, 1fr); }
       .task-header-list { padding: 10px; }
     }
-    .turn-block { display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .turn-block { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
     .turn-block:last-child { border-bottom: 0; padding-bottom: 0; }
 
-    .message-row { display: flex; gap: 7px; align-items: flex-start; }
+    .message-row { display: flex; gap: 9px; align-items: flex-start; }
     .message-row.user { justify-content: flex-end; }
-    .avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 800; color: #fff; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 800; color: #fff; }
     .user-avatar { background: var(--accent); }
     .ai-avatar { background: #34c759; }
-    .bubble { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    .user-bubble { background: #e8f4fd; color: #1d1d1f; border-radius: 12px 12px 3px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-    .ai-bubble { background: var(--bg-primary); color: var(--text-primary); border-radius: 12px 12px 12px 3px; border: 1px solid var(--border); }
+    .bubble { max-width: 85%; padding: 11px 15px; border-radius: 12px; font-size: 14.5px; line-height: 1.65; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .user-bubble { background: #f0f7ff; color: #1d1d1f; border-radius: 12px 12px 3px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    
+    @media (prefers-color-scheme: dark) {
+      .user-bubble { background: #00254d; color: #f5f5f7; border: 1px solid #004d99; }
+    }
+    
+    .ai-bubble { background: var(--bg-primary); color: var(--text-primary); border-radius: 12px 12px 12px 3px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02); }
     .ai-bubble.result { border-left: 3px solid var(--success); }
     .ai-bubble.progress { border-left: 3px solid var(--warning); }
-    .bubble-label { display: block; margin-bottom: 5px; font-size: 11px; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.05em; text-transform: uppercase; }
+    .bubble-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.08em; text-transform: uppercase; }
     .user-bubble .bubble-label { color: var(--accent); }
     .result .bubble-label { color: var(--success); }
     .progress .bubble-label { color: var(--warning); }
 
     /* Turn 标题：全新排版增强以保障章节级时序分割之美 */
     .turn-title {
-      font-size: 13.5px;
+      font-size: 14.5px;
       font-weight: 700;
       color: var(--text-primary);
       letter-spacing: 0.05em;
-      border-bottom: 1px dashed var(--border-color);
+      border-bottom: 1px dashed var(--border);
       padding-bottom: 8px;
       margin-bottom: 14px;
-      margin-top: 20px;
+      margin-top: 24px;
     }
 
-    .artifact-block { margin-top: 8px; }
-    .artifact-title { font-size: 11.5px; color: var(--text-tertiary); font-weight: 700; margin-bottom: 5px; letter-spacing: 0.02em; }
-    .artifact-list { display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; }
-    .artifact-chip { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; font-size: 10px; color: var(--text-secondary); }
+    .artifact-block { margin-top: 10px; }
+    .artifact-title { font-size: 12px; color: var(--text-tertiary); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.02em; }
+    .artifact-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+    .artifact-chip { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
     .artifact-button { cursor: pointer; }
     .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
     .artifact-diff { flex-basis: 100%; width: 100%; }
@@ -2559,7 +2564,21 @@
           if (options && options.length > 0) {
             optionsHtml = `
               <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
-                ${options.map(opt => `<span class="artifact-chip" style="font-size: 11px;">${escapeHtml(opt)}</span>`).join('')}
+                ${options.map(opt => {
+                  let text = '';
+                  let titleAttr = '';
+                  if (typeof opt === 'string') {
+                    text = opt;
+                  } else if (opt && typeof opt === 'object') {
+                    text = opt.label || opt.text || opt.description || JSON.stringify(opt);
+                    if (opt.description) {
+                      titleAttr = ` title="${escapeAttr(opt.description)}"`;
+                    }
+                  } else {
+                    text = String(opt);
+                  }
+                  return `<span class="artifact-chip" style="font-size: 11px;"${titleAttr}>${escapeHtml(text)}</span>`;
+                }).join('')}
               </div>`;
           }
           
@@ -2619,7 +2638,7 @@
         </div>
         ${goalHtml}
         ${turn.userMessages.length ? renderUserBubble(turn.userMessages.map((event) => partText(event.part)).join('\n')) : ''}
-        ${renderTurnFinalBubble(card, turn, isLastTurn)}
+        ${renderTurnFinalBubble(card, turn, isLastTurn, index === 0)}
         ${interactiveBubbles}
       </section>`;
     }
@@ -2641,7 +2660,7 @@
       return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(card.finalText)}${renderArtifacts(card.artifacts)}</div></div>`;
     }
 
-    function renderTurnFinalBubble(card, turn, isLastTurn) {
+    function renderTurnFinalBubble(card, turn, isLastTurn, isFirstTurn = false) {
       const status = isLastTurn ? card.todo.status : 'in_progress';
       const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
       const className = status === 'in_progress' ? 'progress' : 'result';
@@ -2656,9 +2675,9 @@
       const { mainText, question } = splitActionableQuestion(turn.finalText);
       
       // NOTE: 检测 finalText 是否为 inferOutcomeFromTurn 产生的占位文字（不含实质内容）
-      // 若是，则不在 bubble 主体里渲染这段文字，交由工具按钮区域呈现信息
+      // 若是，且非首轮气泡，则不在 bubble 主体里直接渲染这段文字，交由工具按钮区域呈现信息
       const placeholderTexts = ['任务正在处理中。', '任务已完成。', '等待处理。', '任务待处理'];
-      const isPlaceholderText = !turn.finalText || placeholderTexts.some(p => turn.finalText.trim() === p) || (turn.finalText.trim().length < 60 && /^(任务进行中|任务已完成|任务待处理|任务正在处理|等待处理)/.test(turn.finalText.trim()));
+      const isPlaceholderText = !isFirstTurn && (!turn.finalText || placeholderTexts.some(p => turn.finalText.trim() === p) || (turn.finalText.trim().length < 60 && /^(任务进行中|任务已完成|任务待处理|任务正在处理|等待处理)/.test(turn.finalText.trim())));
 
       let bubbleBodyHtml = '';
       if (!isPlaceholderText) {
@@ -2694,6 +2713,46 @@
           }
         }
       }
+
+      // 过程分析消息（若有，以下拉面板方式呈现在气泡主体中）
+      let processTextsHtml = '';
+      if (turn.processTexts && turn.processTexts.length > 0) {
+        const id = 'pt-' + Math.random().toString(36).slice(2);
+        const combined = turn.processTexts.map(t => t.trim()).filter(Boolean).join('\n\n');
+        if (combined) {
+          processTextsHtml = `
+            <div class="artifact-block" style="margin-top: 6px;">
+              <div class="artifact-list">
+                <button class="artifact-chip artifact-button" type="button" onclick="toggleArtifact('${id}')">💬 查看本轮过程分析 (${turn.processTexts.length} 条)</button>
+              </div>
+              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
+                <div class="skill-meta" style="font-size:12.5px; line-height:1.6; white-space:pre-wrap;">${renderMarkdown(combined)}</div>
+              </div>
+            </div>`;
+        }
+      }
+
+      // AI 思考过程（若有，以下拉面板方式呈现在气泡主体中）
+      let thoughtHtml = '';
+      if (turn.reasoning && turn.reasoning.length > 0) {
+        const id = 'th-' + Math.random().toString(36).slice(2);
+        const combined = turn.reasoning.map(r => partText(r.part)).filter(Boolean).join('\n\n');
+        if (combined.trim()) {
+          thoughtHtml = `
+            <div class="artifact-block" style="margin-top: 6px;">
+              <div class="artifact-list">
+                <button class="artifact-chip artifact-button" type="button" style="color:var(--text-muted);" onclick="toggleArtifact('${id}')">🧠 查看 AI 思考过程 (${compact(combined.length)} 字)</button>
+              </div>
+              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto; font-style: italic;">
+                <div class="skill-meta" style="font-size:12px; line-height:1.6; white-space:pre-wrap; color:var(--text-secondary);">${escapeHtml(combined)}</div>
+              </div>
+            </div>`;
+        }
+      }
+
+      let finalBodyHtml = bubbleBodyHtml || '';
+      finalBodyHtml += processTextsHtml;
+      finalBodyHtml += thoughtHtml;
 
       // NOTE: 为 turn 中的普通工具调用（非交互式）生成可展开的 chip 按钮列表
       // 过滤排除 todowrite 等系统工具，以及已被制品区域渲染的读写文件工具、与本轮 Skill 意图重复的底层命令行执行，防冗余重复
@@ -2732,7 +2791,7 @@
         toolChipsHtml = `<div class="artifact-block" style="margin-top:6px;"><div class="artifact-title">🛠️ 工具调用</div><div class="artifact-list">${chips}</div></div>`;
       }
 
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}${flagClass}">${flagBadge}<span class="bubble-label">${label}</span>${bubbleBodyHtml}${toolChipsHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}${flagClass}">${flagBadge}<span class="bubble-label">${label}</span>${finalBodyHtml}${toolChipsHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
