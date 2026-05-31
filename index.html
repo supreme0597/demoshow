@@ -234,6 +234,33 @@
     .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
     .artifact-diff { flex-basis: 100%; width: 100%; }
     .artifact-diff.hidden { display: none; }
+    /* 工具调用 chip 展开面板 */
+    .tool-chip-detail {
+      flex-basis: 100%;
+      width: 100%;
+      margin-top: 4px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #05070e;
+    }
+    .tool-chip-detail.hidden { display: none; }
+    .tool-chip-cmd {
+      padding: 6px 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: #a7f3d0;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      word-break: break-all;
+    }
+    .tool-chip-output {
+      padding: 8px 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
     /* 追溯时间线基础结构 */
     .trace-timeline {
       position: relative;
@@ -1061,15 +1088,9 @@
         current = parentId ? idMap.get(parentId) : null;
       }
 
-      // 2. 过滤消息：保留激活的 User 消息，以及其 parentID 存在于激活 User 消息集中的所有 AI 消息
-      return messages.filter((msg) => {
-        const id = msg.id || msg.info?.id;
-        if (msg.info?.role === 'user' || msg.role === 'user') {
-          return activeUserIds.has(id);
-        }
-        const parentId = msg.parentID || msg.info?.parentID;
-        return activeUserIds.has(parentId);
-      });
+      // NOTE: 消息过滤功能已禁用，直接返回全量消息链。过滤算法保留（activeUserIds）供后续恢复使用。
+      // 如需恢复过滤，取消注释下方 return messages.filter(...)  块。
+      return messages;
     }
 
     function buildTimeline(messages) {
@@ -2354,40 +2375,71 @@
 
       const { mainText, question } = splitActionableQuestion(turn.finalText);
       
+      // NOTE: 检测 finalText 是否为 inferOutcomeFromTurn 产生的占位文字（不含实质内容）
+      // 若是，则不在 bubble 主体里渲染这段文字，交由工具按钮区域呈现信息
+      const placeholderTexts = ['任务正在处理中。', '任务已完成。', '等待处理。', '任务待处理'];
+      const isPlaceholderText = !turn.finalText || placeholderTexts.some(p => turn.finalText.trim() === p) || (turn.finalText.trim().length < 60 && /^(任务进行中|任务已完成|任务待处理|任务正在处理|等待处理)/.test(turn.finalText.trim()));
+
       let bubbleBodyHtml = '';
-      if (question) {
-        const id = 'details-doc-' + Math.random().toString(36).slice(2);
-        bubbleBodyHtml = `
-          <div class="action-question-box">
-            <span class="question-emoji">❓</span>
-            <span class="question-text">${escapeHtml(question)}</span>
-          </div>
-          ${mainText ? `
-            <div class="artifact-block" style="margin: 6px 0 2px 0;">
-              <div class="artifact-list">
-                <span class="artifact-chip" onclick="toggleArtifact('${id}')" style="cursor:pointer; font-weight:700;">📄 查看详情报告 (Markdown)</span>
-              </div>
-              <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
-                <div class="skill-meta">${renderMarkdown(mainText)}</div>
-              </div>
-            </div>` : ''}
-        `;
-      } else {
-        const id = 'long-md-' + Math.random().toString(36).slice(2);
-        const hasLongText = (turn.finalText || '').length > 200;
-        
-        if (hasLongText) {
+      if (!isPlaceholderText) {
+        if (question) {
+          const id = 'details-doc-' + Math.random().toString(36).slice(2);
           bubbleBodyHtml = `
-            <div class="collapsible-wrapper">
-              <div id="${id}" class="collapsible-text" style="-webkit-line-clamp: 3;">${renderMarkdown(turn.finalText)}</div>
-              <span class="link-button collapsible-btn" onclick="toggleCollapsibleText('${id}', this)">[展开]</span>
-            </div>`;
+            <div class="action-question-box">
+              <span class="question-emoji">❓</span>
+              <span class="question-text">${escapeHtml(question)}</span>
+            </div>
+            ${mainText ? `
+              <div class="artifact-block" style="margin: 6px 0 2px 0;">
+                <div class="artifact-list">
+                  <span class="artifact-chip" onclick="toggleArtifact('${id}')" style="cursor:pointer; font-weight:700;">📄 查看详情报告 (Markdown)</span>
+                </div>
+                <div id="${id}" class="skill-markdown-content hidden" style="margin-top: 6px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; max-height: 250px; overflow-y: auto;">
+                  <div class="skill-meta">${renderMarkdown(mainText)}</div>
+                </div>
+              </div>` : ''}
+          `;
         } else {
-          bubbleBodyHtml = `<div>${renderMarkdown(turn.finalText)}</div>`;
+          const id = 'long-md-' + Math.random().toString(36).slice(2);
+          const hasLongText = (turn.finalText || '').length > 200;
+          
+          if (hasLongText) {
+            bubbleBodyHtml = `
+              <div class="collapsible-wrapper">
+                <div id="${id}" class="collapsible-text" style="-webkit-line-clamp: 3;">${renderMarkdown(turn.finalText)}</div>
+                <span class="link-button collapsible-btn" onclick="toggleCollapsibleText('${id}', this)">[展开]</span>
+              </div>`;
+          } else {
+            bubbleBodyHtml = `<div>${renderMarkdown(turn.finalText)}</div>`;
+          }
         }
       }
 
-      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}${flagClass}">${flagBadge}<span class="bubble-label">${label}</span>${bubbleBodyHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
+      // NOTE: 为 turn 中的普通工具调用（非交互式）生成可展开的 chip 按钮列表
+      // 每个工具调用仅渲染一个 chip 按钮，点击后 inline 展开详情，不自动展开
+      const normalToolsForBubble = (turn.tools || []).filter(t => {
+        const tool = t.part?.tool || '';
+        return tool !== 'todowrite' && !['ask_user_question', 'ask_permission', 'question'].includes(tool) && !tool.includes('ask_question') && !tool.includes('ask_permission');
+      });
+      let toolChipsHtml = '';
+      if (normalToolsForBubble.length > 0) {
+        const chips = normalToolsForBubble.map(t => {
+          const tool = t.part?.tool || 'tool';
+          const title = t.part?.state?.title || t.part?.state?.input?.description || t.part?.state?.metadata?.description || tool;
+          const cmd = t.part?.state?.input?.command || t.part?.state?.input?.filePath || t.part?.state?.metadata?.filepath || '';
+          const output = t.part?.state?.output || '';
+          const id = 'tc-' + Math.random().toString(36).slice(2);
+          const icon = toolIcon(tool);
+          const shortTitle = title.length > 40 ? title.slice(0, 38) + '…' : title;
+          const outputHtml = output
+            ? `<pre style="margin:0; white-space:pre-wrap; word-break:break-all; font-size:10.5px; color:#a7f3d0; line-height:1.5; max-height:200px; overflow-y:auto;">${escapeHtml(String(output).slice(0, 3000))}</pre>`
+            : `<span style="color:var(--text-muted); font-style:italic; font-size:11px;">[执行完成，无输出]</span>`;
+          return `<button class="artifact-chip artifact-button" type="button" onclick="toggleToolChip('${id}')">${icon} ${escapeHtml(shortTitle)}</button><div id="${id}" class="tool-chip-detail hidden"><div class="tool-chip-cmd">${cmd ? `<span style="color:#a5b4fc;">$ </span>${escapeHtml(cmd)}` : `<span style="color:var(--text-muted);">[${escapeHtml(tool)}]</span>`}</div><div class="tool-chip-output">${outputHtml}</div></div>`;
+        }).join('');
+        toolChipsHtml = `<div class="artifact-block" style="margin-top:6px;"><div class="artifact-title">🛠️ 工具调用</div><div class="artifact-list">${chips}</div></div>`;
+      }
+
+      return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}${flagClass}">${flagBadge}<span class="bubble-label">${label}</span>${bubbleBodyHtml}${toolChipsHtml}${renderArtifacts(turn.artifacts)}${renderSkillsOnBubble(turn.skills)}${renderTurnTraceability(turn)}</div></div>`;
     }
 
     function renderArtifacts(artifacts) {
@@ -2404,6 +2456,22 @@
     function toggleArtifact(id) {
       const el = document.getElementById(id);
       if (el) el.classList.toggle('hidden');
+    }
+
+    // NOTE: 工具调用详情面板开关 - 点击 chip 按钮时展开/收起对应的 tool-chip-detail
+    // 同一个 artifact-list 内已展开的其他面板会自动收起，保持简洁
+    function toggleToolChip(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isHidden = el.classList.contains('hidden');
+      // 收起同级其他展开的 tool-chip-detail
+      const parent = el.closest('.artifact-list');
+      if (parent) {
+        parent.querySelectorAll('.tool-chip-detail:not(.hidden)').forEach(other => {
+          if (other.id !== id) other.classList.add('hidden');
+        });
+      }
+      el.classList.toggle('hidden', !isHidden);
     }
 
     function renderProcess(card) {
