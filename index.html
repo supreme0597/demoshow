@@ -1452,8 +1452,10 @@
 
         const allAssignedCards = new Set([...targetCards, ...developmentTargetCards]);
         for (const card of allAssignedCards) {
+          // NOTE: 在前置调研阶段（第一次 todowrite 之前），用户输入应严格留在 initCard 中，不外溢到真实任务卡片上
+          const cardPendingUsers = (isPreambleWindow && card !== initCard) ? [] : pendingUserEvents;
           // 对这唯一的一张 Card 仅创建一次本轮 of Turn，本轮有用户输入则传入，无则为 []
-          const turn = ensureTurn(card, pendingUserEvents, null);
+          const turn = ensureTurn(card, cardPendingUsers, null);
           turn.aiTexts.push(...textEvents);
           turn.reasoning.push(...reasoningEvents);
           
