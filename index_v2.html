@@ -1917,7 +1917,7 @@
       interactiveTools.forEach(t => {
         const out = t.part?.state?.output || '';
         if (out) {
-          let cleanAnswer = out.replace(/^User has answered your questions:\s*/i, '');
+          let cleanAnswer = getCleanUserAnswer(out);
           if (cleanAnswer.toLowerCase().includes('approved') || cleanAnswer.toLowerCase().includes('authorized')) {
             cleanAnswer = '🟢 [授权核准] 已批准并授权模型继续执行该安全操作。';
           }
@@ -1997,6 +1997,22 @@
 
     function escapeHtml(text) {
       return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // NOTE: 智能提取交互工具反馈 output 中等号 "=" 后面的真实用户答案，剥离多余的提问与系统格式
+    function getCleanUserAnswer(out) {
+      if (!out) return '';
+      let s = out.replace(/^User has answered your questions:\s*/i, '').trim();
+      
+      if (s.includes('=')) {
+        const parts = s.split('=');
+        let ans = parts[parts.length - 1].trim();
+        if (ans.startsWith('"') && ans.endsWith('"')) {
+          ans = ans.substring(1, ans.length - 1).trim();
+        }
+        return ans;
+      }
+      return s;
     }
 
     /* ========== 6. 全局线性审计时序轴 (Audit Timeline View) ========== */
@@ -2173,10 +2189,9 @@
                     </div>
                   `;
                 } else if (toolName === 'ask_user_question' || toolName.includes('ask_question')) {
-                  // NOTE: 智能检测交互提问工具，并渲染极其高贵精美的交互卡片
+                  // NOTE: 智能检测交互提问工具，仅在 AI 卡片中渲染提问内容，用户的真实回答由下方的右侧 Feedback 气泡承载
                   const questionText = evt.part?.state?.input?.question || evt.part?.state?.input?.Prompt || (evt.part?.state?.input?.questions ? evt.part?.state?.input?.questions.map(q => q.question).join('\n') : '') || '未知提问';
                   const options = evt.part?.state?.input?.options || (evt.part?.state?.input?.questions?.[0]?.options) || [];
-                  const out = evt.part?.state?.output || '';
                   
                   let optionsHtml = '';
                   if (options && options.length > 0) {
@@ -2199,21 +2214,11 @@
                           ${escapeHtml(questionText)}
                           ${optionsHtml}
                         </div>
-                        
-                        <div style="margin-top: 12px; color: var(--success); font-weight: 800; display:flex; align-items:center; gap: 6px;">
-                          <span>🟢</span> 
-                          <span>用户交互反馈：</span>
-                        </div>
-                        <div style="margin-top: 6px; color: var(--text-primary); background: rgba(16, 185, 129, 0.06); border: 1px solid var(--success-glow); padding: 10px 12px; border-radius: 8px; font-weight:500; line-height: 1.6;">
-                          ${escapeHtml(out || '[用户已选择核准并继续执行]')}
-                        </div>
                       </div>
                     </div>
                   `;
                 } else if (toolName.includes('ask_permission')) {
-                  // NOTE: 智能检测运行权限审批工具，并渲染极其高贵精美的安全防线卡片
-                  const out = evt.part?.state?.output || '';
-                  
+                  // NOTE: 智能检测运行权限审批工具，仅保留权限申请内容描述，核准反馈由下方的右侧 Feedback 气泡承载
                   aiInnerHtml += `
                     <div class="audit-tool-row open" id="${uniqueToolId}" style="border-color: var(--purple-glow); background: rgba(168, 85, 247, 0.03); box-shadow: 0 4px 20px rgba(168, 85, 247, 0.05); margin-bottom: 12px;">
                       <div class="audit-tool-header" onclick="toggleAuditTool('${uniqueToolId}')" style="background: rgba(168, 85, 247, 0.08); border-bottom: 1px solid var(--purple-glow); display: flex; align-items: center; justify-content: space-between;">
@@ -2235,14 +2240,6 @@
                             <td style="padding: 6px 0; color: var(--text-secondary); line-height:1.5;">${escapeHtml(evt.part?.state?.input?.Reason || 'Reason')}</td>
                           </tr>
                         </table>
-                        
-                        <div style="margin-top: 12px; color: var(--purple); font-weight: 800; display:flex; align-items:center; gap: 6px;">
-                          <span>🔑</span> 
-                          <span>权限核准反馈：</span>
-                        </div>
-                        <div style="margin-top: 6px; color: var(--text-primary); background: rgba(16, 185, 129, 0.06); border: 1px solid var(--success-glow); padding: 10px 12px; border-radius: 8px; font-weight:500; line-height:1.6;">
-                          ${escapeHtml(out || '[已授权通过并继续执行]')}
-                        </div>
                       </div>
                     </div>
                   `;
@@ -2307,7 +2304,7 @@
         interactiveEvents.forEach(evt => {
           const out = evt.part?.state?.output || '';
           if (out) {
-            let cleanAnswer = out.replace(/^User has answered your questions:\s*/i, '');
+            let cleanAnswer = getCleanUserAnswer(out);
             if (cleanAnswer.toLowerCase().includes('approved') || cleanAnswer.toLowerCase().includes('authorized')) {
               cleanAnswer = '🟢 [授权核准] 已批准并授权模型继续执行该安全操作。';
             }
