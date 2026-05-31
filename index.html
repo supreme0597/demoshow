@@ -126,59 +126,7 @@
     .view-container { flex: 1; min-height: 0; }
     .view-container.hidden { display: none; }
 
-    /* Phase Timeline */
-    .phase-timeline { height: 100%; overflow-y: auto; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
-    .session-summary {
-      background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px;
-      padding: 14px 16px; display: flex; gap: 24px; flex-wrap: wrap; flex-shrink: 0;
-    }
-    .summary-item { display: flex; flex-direction: column; gap: 2px; }
-    .summary-label { font-size: 9px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-    .summary-value { font-size: 22px; font-weight: 750; color: var(--text-primary); }
-    .summary-sub { font-size: 11px; color: var(--text-secondary); }
 
-    .phase-card {
-      background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px;
-      overflow: hidden; flex-shrink: 0;
-    }
-    .phase-card.dimmed { opacity: 0.65; }
-    .phase-header {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer;
-    }
-    .phase-header:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-    .phase-indicator { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
-    .phase-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-    .phase-title-row { display: flex; align-items: center; gap: 8px; }
-    .phase-title { font-size: 13px; font-weight: 650; }
-    .conf-badge { font-size: 9px; padding: 1px 6px; border-radius: 999px; font-weight: 600; }
-    .conf-high { background: #d1fae5; color: #065f46; }
-    .conf-medium { background: #fef3c7; color: #92400e; }
-    .conf-low { background: #f3f4f6; color: #6b7280; }
-    .phase-bar-row { display: flex; align-items: center; gap: 8px; }
-    .phase-bar { flex: 1; height: 6px; background: var(--bg-tertiary); border-radius: 999px; overflow: hidden; }
-    .phase-fill { height: 100%; border-radius: 999px; }
-    .phase-meta { color: var(--text-secondary); font-size: 10px; white-space: nowrap; display: flex; gap: 10px; }
-    .phase-chevron { color: var(--text-tertiary); font-size: 10px; transition: transform .15s ease; }
-    .phase-card.open .phase-chevron { transform: rotate(90deg); }
-
-    .phase-steps { padding: 0 12px 10px 12px; display: none; flex-direction: column; gap: 5px; }
-    .phase-card.open .phase-steps { display: flex; }
-    .phase-step { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
-    .step-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-    .step-header:hover { color: var(--accent); }
-    .step-title { font-size: 11px; font-weight: 600; color: var(--text-primary); }
-    .step-right { display: flex; align-items: center; gap: 6px; }
-    .step-dur { color: var(--text-tertiary); font-size: 10px; }
-    .step-reason-badge { font-size: 8px; padding: 1px 4px; border-radius: 3px; background: var(--bg-tertiary); color: var(--text-tertiary); }
-    .step-detail { display: none; margin-top: 6px; }
-    .phase-step.open .step-detail { display: block; }
-    .step-tools { display: flex; gap: 3px; flex-wrap: wrap; }
-    .step-tool { background: var(--bg-tertiary); border-radius: 3px; padding: 1px 5px; font-size: 9px; color: var(--text-secondary); }
-    .step-reasoning { margin-top: 4px; border-left: 2px solid var(--border); padding-left: 6px; color: var(--text-tertiary); font-size: 9px; line-height: 1.5; max-height: 100px; overflow-y: auto; }
-    .step-texts { margin-top: 4px; color: var(--text-secondary); font-size: 10px; line-height: 1.45; }
-    .step-artifacts { margin-top: 4px; display: flex; gap: 3px; flex-wrap: wrap; }
-    .step-artifact { font-size: 9px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--text-secondary); }
-    .step-tokens { margin-top: 3px; font-size: 8px; color: var(--text-tertiary); }
 
     /* Board */
     .board { flex: 1; min-height: 0; }
@@ -272,52 +220,7 @@
     .artifact-button:hover { border-color: var(--accent); color: var(--accent); }
     .artifact-diff { flex-basis: 100%; width: 100%; }
     .artifact-diff.hidden { display: none; }
-    
-    /* 过程折叠区：醒目的可交互折叠栏，不可能被用户忽略 */
-    .process-collapse-container {
-      margin: 12px 0;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: 6px;
-      overflow: hidden;
-      background: color-mix(in srgb, var(--accent) 4%, var(--bg-secondary));
-    }
-    .process-collapse-header {
-      padding: 10px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      background: color-mix(in srgb, var(--accent) 8%, var(--bg-tertiary));
-      user-select: none;
-      transition: background 0.15s;
-    }
-    .process-collapse-header:hover {
-      background: color-mix(in srgb, var(--accent) 15%, var(--bg-tertiary));
-    }
-    .process-collapse-header .collapse-arrow {
-      color: var(--accent);
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-    .process-collapse-body {
-      padding: 10px;
-      border-top: 1px dashed var(--border);
-      background: var(--bg-primary);
-    }
-    /* 强力覆盖子容器的 max-height 与 overflow 限制，彻底避免过程折叠块内部滚动，实现全文本拉平平铺 */
-    .process-collapse-body pre,
-    .process-collapse-body .skill-markdown-content,
-    .process-collapse-body .tool-chip-detail pre,
-    .process-collapse-body .tool-chip-output pre {
-      max-height: none !important;
-      overflow: visible !important;
-      overflow-y: visible !important;
-    }
+    /* 已根据用户偏好彻底取消静默过程隐藏，所有 Turn 轨迹均直接 100% 显式平铺展现，消除一切折叠坍塌可能 */
     /* 工具调用 chip 展开面板 */
     .tool-chip-detail {
       flex-basis: 100%;
@@ -814,8 +717,7 @@
 
   <main id="app" class="app hidden" tabindex="-1">
     <section id="info-bar"></section>
-    <section id="phase-view" class="view-container phase-timeline"></section>
-    <section id="task-view" class="view-container board hidden"></section>
+    <section id="task-view" class="view-container board"></section>
   </main>
   <input id="file-input" class="hidden" type="file" accept="application/json,.json">
   <div id="detail-modal-backdrop" class="detail-modal-backdrop hidden">
@@ -833,7 +735,7 @@
     const dropError = document.getElementById('drop-error');
     const app = document.getElementById('app');
     const infoBar = document.getElementById('info-bar');
-    const phaseView = document.getElementById('phase-view');
+
     const taskView = document.getElementById('task-view');
     const fileInput = document.getElementById('file-input');
     const detailModalBackdrop = document.getElementById('detail-modal-backdrop');
@@ -1126,194 +1028,22 @@
           detectErrorSignals(verCards);
           ver.cards = verCards;
 
-          const verSteps  = extractSteps(verMessages);
-          const verPhases = aggregatePhases(verSteps);
-          attachPhaseTodos(verPhases, ver.sortedTodos, verSteps);
-
-          ver.steps  = verSteps;
-          ver.phases = verPhases;
+          ver.steps  = [];
+          ver.phases = [];
         }
       }
 
-      const steps = extractSteps(activeChain);
-      const phases = aggregatePhases(steps);
-      
       const activeVer = todoVersions[activeVersionIndex];
       const todos = activeVer ? activeVer.sortedTodos : [];
       const cards = activeVer ? activeVer.cards : fallbackCards(timeline);
       if (!activeVer) detectErrorSignals(cards);
-      const activeSteps = activeVer ? activeVer.steps : steps;
-      const activePhases = activeVer ? activeVer.phases : phases;
-      
-      if (!activeVer) {
-        attachPhaseTodos(activePhases, todos, activeSteps);
-      }
 
-      return { session, todoVersions, activeVersionIndex, todos, cards, steps: activeSteps, phases: activePhases };
+      return { session, todoVersions, activeVersionIndex, todos, cards, steps: [], phases: [] };
     }
 
-    /* ========== Step Extraction (uses step-start/step-finish) ========== */
 
-    function extractSteps(messages) {
-      const steps = [];
-      for (let mi = 0; mi < messages.length; mi++) {
-        const msg = messages[mi];
-        const info = msg.info || {};
-        if (info.role !== 'assistant') continue;
 
-        const parts = msg.parts || [];
-        let stepStart = null, stepFinish = null;
-        for (const part of parts) {
-          if (part.type === 'step-start') stepStart = part;
-          if (part.type === 'step-finish') stepFinish = part;
-        }
-        if (!stepStart && !stepFinish) continue;
 
-        const startedAt = stepStart?.time?.start || info.time?.created || 0;
-        const endedAt = stepFinish?.time?.end || info.time?.completed || startedAt;
-
-        const step = {
-          index: steps.length,
-          messageIndex: mi,
-          startedAt,
-          endedAt,
-          duration: endedAt - startedAt,
-          finishReason: stepFinish?.reason || info.finish || '',
-          tokens: stepFinish?.tokens || info.tokens || {},
-          cost: stepFinish?.cost || info.cost || 0,
-          tools: [],
-          skills: [],
-          subagents: [],
-          reasoning: [],
-          texts: [],
-          artifacts: [],
-          rawPart: stepStart,
-          finishPart: stepFinish,
-        };
-
-        for (const part of parts) {
-          if (part.type === 'tool') {
-            if (part.tool === 'skill') step.skills.push(part);
-            else if (part.tool === 'task') step.subagents.push(part);
-            else step.tools.push(part);
-          } else if (part.type === 'reasoning') {
-            step.reasoning.push(part);
-          } else if (part.type === 'text') {
-            step.texts.push(part);
-          } else if (part.type === 'patch') {
-            for (const file of part.files || []) step.artifacts.push({ file, status: 'modified', kind: 'patch' });
-          }
-        }
-
-        for (const diff of info.summary?.diffs || []) {
-          step.artifacts.push({ file: diff.file, status: diff.status, kind: 'diff', additions: diff.additions, deletions: diff.deletions });
-        }
-
-        steps.push(step);
-      }
-      return steps;
-    }
-
-    /* ========== Phase Classification ========== */
-
-    function classifyStep(step) {
-      const titles = step.tools.map((t) => t.state?.title || '');
-      const skillNames = step.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || '');
-      const subTitles = step.subagents.map((t) => t.state?.title || '');
-      const allFiles = step.artifacts.map((a) => a.file || '');
-      const all = [...titles, ...skillNames, ...subTitles, ...allFiles].join(' ').toLowerCase();
-
-      if (all.includes('explore project')) return { phase: '项目调研与架构分析', confidence: 'high' };
-      if (all.includes('proposal.md') || all.includes('design.md') || all.includes('tasks.md'))
-        return { phase: '核心文档与方案产出', confidence: 'high' };
-      if (all.includes('todowrite') || all.includes('todos')) return { phase: '任务规划与状态管理', confidence: 'high' };
-
-      const hasSkill = (name) => skillNames.some((n) => n.toLowerCase() === name);
-      if (hasSkill('comet') && !hasSkill('comet-open') && !hasSkill('comet-design')) return { phase: '流程启动与意图识别', confidence: 'high' };
-      if (hasSkill('comet-open')) return { phase: '流程启动与意图识别', confidence: 'high' };
-      if (hasSkill('comet-design')) return { phase: '变更状态与阶段流转', confidence: 'high' };
-      if (hasSkill('brainstorming')) return { phase: '设计确认与交付准备', confidence: 'high' };
-
-      if (titles.some((t) => t.toLowerCase().includes('check for active') || t.toLowerCase().includes('preset') || t.toLowerCase().includes('check openspec'))) return { phase: '流程启动与意图识别', confidence: 'high' };
-      if (titles.some((t) => (t.toLowerCase().includes('create') && t.toLowerCase().includes('directory')) || t.toLowerCase().includes('mkdir') || t.toLowerCase().includes('comet environment'))) return { phase: '环境准备与目录创建', confidence: 'high' };
-      if (titles.some((t) => t.toLowerCase().includes('initialize comet') || t.toLowerCase().includes('comet state') || t.toLowerCase().includes('guard') || t.toLowerCase().includes('entry check') || t.toLowerCase().includes('handoff'))) return { phase: '变更状态与阶段流转', confidence: 'high' };
-
-      if (!step.tools.length && !step.skills.length && !step.subagents.length && step.texts.length)
-        return { phase: 'AI 回复与总结', confidence: 'medium' };
-      if (step.subagents.length) return { phase: '子任务执行', confidence: 'medium' };
-      if (step.skills.length) return { phase: '技能加载', confidence: 'medium' };
-      if (step.artifacts.length) return { phase: '文件变更', confidence: 'medium' };
-      return { phase: '执行步骤', confidence: 'low' };
-    }
-
-    /* ========== Phase Aggregation ========== */
-
-    function aggregatePhases(steps) {
-      if (!steps.length) return [];
-      const phases = [];
-      let current = null;
-
-      for (const step of steps) {
-        const { phase: title, confidence } = classifyStep(step);
-
-        if (!current || current.title !== title) {
-          current = {
-            title,
-            confidence,
-            steps: [step],
-            startedAt: step.startedAt,
-            endedAt: step.endedAt,
-            artifacts: [],
-            toolCount: 0,
-            skillCount: 0,
-            subagentCount: 0,
-          };
-          phases.push(current);
-        } else {
-          current.steps.push(step);
-          current.endedAt = step.endedAt;
-          if (confidence === 'high') current.confidence = 'high';
-        }
-
-        current.toolCount += step.tools.length;
-        current.skillCount += step.skills.length;
-        current.subagentCount += step.subagents.length;
-        current.artifacts.push(...step.artifacts);
-      }
-
-      for (const phase of phases) {
-        const seen = new Set();
-        phase.artifacts = phase.artifacts.filter((a) => {
-          const key = a.file;
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-      }
-
-      return phases;
-    }
-
-    function attachPhaseTodos(phases, todos, steps) {
-      for (const phase of phases) {
-        phase.todos = [];
-        const stepText = phase.steps.map((s) => {
-          return [...s.tools.map((t) => t.state?.title || ''), ...s.skills.map((t) => t.state?.input?.name || t.state?.metadata?.name || ''), ...s.subagents.map((t) => t.state?.title || '')].join(' ');
-        }).join(' ').toLowerCase();
-        const stepFiles = phase.artifacts.map((a) => (a.file || '').toLowerCase());
-
-        for (const todo of todos) {
-          const todoLower = todo.content.toLowerCase();
-          if (stepFiles.some((f) => todoLower.includes(f.split('/').pop()))) {
-            phase.todos.push(todo);
-            continue;
-          }
-          const todoWords = todoLower.split(/[^a-z0-9_.-]+/).filter((w) => w.length >= 4);
-          const matches = todoWords.filter((w) => stepText.includes(w));
-          if (matches.length >= 2) phase.todos.push(todo);
-        }
-      }
-    }
 
     /* ========== Existing Parse Helpers ========== */
 
@@ -2257,21 +1987,8 @@
       app.classList.remove('hidden');
       const allTodos = viewModel.todos.length ? viewModel.todos : viewModel.cards.map((c) => c.todo);
       renderInfoBar(viewModel.session, allTodos, viewModel);
-      renderPhaseView(viewModel);
       renderBoard(viewModel.cards);
-      switchView(currentView);
       adjustCollapsibleButtons();
-    }
-
-    function switchView(view) {
-      currentView = view;
-      phaseView.classList.toggle('hidden', view !== 'phase');
-      taskView.classList.toggle('hidden', view !== 'task');
-      const buttons = document.querySelectorAll('.view-btn');
-      buttons.forEach((btn) => btn.classList.toggle('active', btn.dataset.view === view));
-      if (view === 'task') {
-        adjustCollapsibleButtons();
-      }
     }
 
     function renderInfoBar(session, todos, viewModel) {
@@ -2325,133 +2042,7 @@
         </div>`;
     }
 
-    /* ========== Phase Timeline Rendering ========== */
 
-    function renderPhaseView(viewModel) {
-      const phases = viewModel.phases || [];
-      if (!phases.length) {
-        phaseView.innerHTML = '<div class="empty">未检测到阶段信息</div>';
-        return;
-      }
-      phaseView.innerHTML = renderSessionSummary(viewModel) + phases.map((phase) => renderPhaseCard(phase, viewModel)).join('');
-    }
-
-    function renderSessionSummary(viewModel) {
-      const session = viewModel.session.info || {};
-      const created = session.time?.created || 0;
-      const updated = session.time?.updated || created;
-      const seconds = created && updated ? Math.max(0, Math.round((updated - created) / 1000)) : 0;
-      const phases = viewModel.phases || [];
-      const totalSteps = phases.reduce((sum, p) => sum + p.steps.length, 0);
-      const totalTools = phases.reduce((sum, p) => sum + p.toolCount + p.skillCount + p.subagentCount, 0);
-      const totalFiles = phases.reduce((sum, p) => sum + p.artifacts.length, 0);
-      const summary = session.summary || {};
-
-      return `<div class="session-summary">
-        <div class="summary-item">
-          <span class="summary-label">总耗时</span>
-          <span class="summary-value">${formatDuration(seconds)}</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">阶段</span>
-          <span class="summary-value">${phases.length}</span>
-          <span class="summary-sub">${totalSteps} 个执行步骤</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">工具调用</span>
-          <span class="summary-value">${totalTools}</span>
-          <span class="summary-sub">含 Skill / SubAgent</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">文件变更</span>
-          <span class="summary-value">${totalFiles}</span>
-          <span class="summary-sub">+${summary.additions || 0}/-${summary.deletions || 0}</span>
-        </div>
-        ${session.model?.id ? `<div class="summary-item">
-          <span class="summary-label">模型</span>
-          <span class="summary-sub" style="font-size:13px;font-weight:600">${escapeHtml(session.model.id)}</span>
-        </div>` : ''}
-      </div>`;
-    }
-
-    function renderPhaseCard(phase, viewModel) {
-      const total = viewModel.session.info.time?.updated - viewModel.session.info.time?.created || 1;
-      const startPos = Math.max(0, ((phase.startedAt - viewModel.session.info.time.created) / total) * 100);
-      const width = Math.max(2, ((phase.endedAt - phase.startedAt) / total) * 100);
-      const totalArtifacts = phase.artifacts.length;
-      const totalTools = phase.toolCount + phase.skillCount + phase.subagentCount;
-      const confLabel = { high: '高', medium: '中', low: '低' }[phase.confidence] || '低';
-      const isAfterUserInput = phase.steps.some((s) => s.texts.some((t) => t.text?.length > 50));
-
-      const colorMap = {
-        '流程启动与意图识别': '#6366f1',
-        '项目调研与架构分析': '#3b82f6',
-        '任务规划与状态管理': '#f59e0b',
-        '环境准备与目录创建': '#8b5cf6',
-        '核心文档与方案产出': '#22c55e',
-        '变更状态与阶段流转': '#ec4899',
-        '设计确认与交付准备': '#14b8a6',
-      };
-      const color = colorMap[phase.title] || (phase.confidence === 'high' ? '#22c55e' : phase.confidence === 'medium' ? '#f59e0b' : '#9ca3af');
-
-      return `<div class="phase-card ${isAfterUserInput ? 'dimmed' : ''}">
-        <div class="phase-header" onclick="this.parentElement.classList.toggle('open')">
-          <div class="phase-indicator" style="background:${color}"></div>
-          <div class="phase-body">
-            <div class="phase-title-row">
-              <span class="phase-title">${escapeHtml(phase.title)}</span>
-              <span class="conf-badge conf-${phase.confidence}">${confLabel}可信</span>
-              <span class="phase-chevron">▶</span>
-            </div>
-            <div class="phase-bar-row">
-              <div class="phase-bar"><div class="phase-fill" style="width:${width}%;margin-left:${startPos}%;background:${color}"></div></div>
-              <div class="phase-meta">
-                <span>${formatDuration(Math.round((phase.endedAt - phase.startedAt) / 1000))}</span>
-                <span>${phase.steps.length} 步</span>
-                <span>${totalTools} 次调用</span>
-                ${totalArtifacts ? `<span>${totalArtifacts} 个文件</span>` : ''}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="phase-steps">
-          ${phase.steps.map((step, i) => renderStep(step, i)).join('')}
-          ${phase.todos.length ? `<div style="margin-top:4px;font-size:10px;color:var(--text-secondary)">关联任务：${phase.todos.map((t) => `<span class="step-tool">${escapeHtml(t.content.split(' - ')[0] + (t.status === 'completed' ? '✅' : t.status === 'in_progress' ? '🔄' : '📋'))}</span>`).join(' ')}</div>` : ''}
-        </div>
-      </div>`;
-    }
-
-    function renderStep(step, i) {
-      const title = stepTitle(step);
-      const hasDetail = step.reasoning.length || step.tools.length || step.skills.length || step.subagents.length || step.texts.length > 1;
-      return `<div class="phase-step">
-        <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
-          <span class="step-title">${escapeHtml(title)}</span>
-          <span class="step-right">
-            <span class="step-dur">${formatDuration(Math.round(step.duration / 1000))}</span>
-            ${step.finishReason ? `<span class="step-reason-badge">${escapeHtml(step.finishReason)}</span>` : ''}
-            ${hasDetail ? '<span style="color:var(--text-tertiary);font-size:9px">▶</span>' : ''}
-          </span>
-        </div>
-        ${hasDetail ? `<div class="step-detail">
-          ${step.texts.length > 1 ? `<div class="step-texts">${escapeHtml(step.texts[0].text?.slice(0, 200) || '')}${(step.texts[0].text?.length || 0) > 200 ? '...' : ''}</div>` : ''}
-          ${step.reasoning.length ? `<div class="step-reasoning">${escapeHtml(step.reasoning.map((r) => r.text?.slice(0, 120)).filter(Boolean).join(' ').slice(0, 300))}</div>` : ''}
-          ${step.tools.length ? `<div class="step-tools">${step.tools.map((t) => `<span class="step-tool">${toolIcon(t.tool)} ${escapeHtml(t.state?.title || t.tool || '')}</span>`).join('')}</div>` : ''}
-          ${step.skills.length ? `<div class="step-tools">${step.skills.map((t) => `<span class="step-tool">📦 ${escapeHtml(t.state?.input?.name || t.state?.metadata?.name || 'skill')}</span>`).join('')}</div>` : ''}
-          ${step.subagents.length ? `<div class="step-tools">${step.subagents.map((t) => `<span class="step-tool">🤖 ${escapeHtml(t.state?.title || 'subagent')}</span>`).join('')}</div>` : ''}
-          ${step.artifacts.length ? `<div class="step-artifacts">${step.artifacts.map((a) => `<span class="step-artifact">${artifactIcon(a.status)} ${escapeHtml(shortPath(a.file))}</span>`).join('')}</div>` : ''}
-          ${step.tokens?.total ? `<div class="step-tokens">tokens: ${compact(step.tokens.input || 0)} in / ${compact(step.tokens.output || 0)} out / ${compact(step.tokens.reasoning || 0)} reasoning</div>` : ''}
-        </div>` : ''}
-      </div>`;
-    }
-
-    function stepTitle(step) {
-      const firstTool = step.tools[0] || step.skills[0] || step.subagents[0];
-      if (firstTool) return firstTool.state?.title || firstTool.state?.input?.description || firstTool.state?.metadata?.name || firstTool.tool || '执行步骤';
-      const text = step.texts.find((t) => t.text && t.text.length > 20);
-      if (text) return text.text.slice(0, 80) + (text.text.length > 80 ? '...' : '');
-      return `Step ${step.index + 1}`;
-    }
 
     /* ========== Task Card View ========== */
 
@@ -2548,130 +2139,18 @@
       selectTaskCard(index);
     };
 
-    function isPureProcessTurn(turn, index = null) {
-      // 0. 任务开篇保护：卡片的第一个 Turn 包含“任务目标”（GoalHtml）与开篇意图，绝对不能作为纯过程折叠隐藏
-      if (index === 0) return false;
-
-      // 如果本轮有任何工具调用执行失败，为暴露出错排障细节，强制保留不折叠
-      const hasFailedTool = (turn.tools || []).some(t => t.part?.state?.status === 'failed') ||
-                            (turn.skills || []).some(s => s.part?.state?.status === 'failed') ||
-                            (turn.subagents || []).some(a => a.part?.state?.status === 'failed');
-      if (hasFailedTool) return false;
-
-      // 1. 用户输入交互：核心决策，必须保留气泡
-      if (turn.userMessages && turn.userMessages.length > 0) return false;
-      
-      // 2. 交互式工具（提问、授权闸口）：核心交互，必须保留气泡
-      const interactiveTools = (turn.tools || []).filter(e => {
-        const toolName = e.part?.tool || '';
-        return toolName === 'ask_user_question' || toolName === 'question' || toolName.includes('ask_question') || toolName.includes('ask_permission');
-      });
-      if (interactiveTools.length > 0) return false;
-      
-      // 3. 物理代码改动：只有真正的写入或修改类制品才显示气泡，只读文件 (status === 'read') 不属于核心成果
-      if (turn.artifacts && turn.artifacts.length > 0) {
-        const hasWriteArtifacts = turn.artifacts.some(a => a.status !== 'read');
-        if (hasWriteArtifacts) return false;
-      }
-      
-      // 4. 辅助状态变量：这一轮是否真的有 AI 实质回复文本（非占位符）
-      let hasSubstantialText = false;
-      if (turn.aiTexts && turn.aiTexts.length > 0) {
-        const placeholderTexts = ['任务正在处理中。', '任务已完成。', '等待处理。', '任务待处理'];
-        hasSubstantialText = turn.aiTexts.some(evt => {
-          const txt = (evt.part?.text || evt.text || '').trim();
-          if (!txt) return false;
-          if (placeholderTexts.includes(txt)) return false;
-          if (txt.length < 60 && /^(任务进行中|任务已完成|任务待处理|任务正在处理|等待处理)/.test(txt)) return false;
-          return true;
-        });
-      }
-      
-      // 5. 核心大动作判定：如果调用了高级工具能力 (skill/subagent/mcp/或非只读的常规 bash 执行) 且拥有实质性 AI 回复文本，才作为气泡暴露；否则如果是静默执行且没有有用文本产出，一律折叠
-      const hasCoreAction = 
-        (turn.skills && turn.skills.length > 0) || 
-        (turn.subagents && turn.subagents.length > 0) ||
-        (turn.tools || []).some(e => {
-          const toolName = e.part?.tool || '';
-          if (toolName.toLowerCase().includes('mcp') || (e.part?.serverName && e.part?.serverName !== 'default')) {
-            return true;
-          }
-          // 如果是普通的命令行执行，且不是只读诊断命令，也算作核心大动作
-          if (toolName === 'bash' || toolName === 'run_command') {
-            const cmd = String(e.part?.state?.input?.command || '').trim().toLowerCase();
-            const isReadOnlyCmd = /^(tail|cat|ls|ps|grep|echo|pwd|cd)\b/.test(cmd);
-            if (!isReadOnlyCmd) return true;
-          }
-          return false;
-        });
-      
-      if (hasCoreAction && hasSubstantialText) return false;
-      
-      return true;
-    }
-
     function renderTurns(card) {
       if (!card.turns.length) return renderEmptyTurn(card);
       
       let html = '';
-      let pendingProcessTurns = [];
-      
-      const flushProcessTurns = () => {
-        if (pendingProcessTurns.length === 0) return;
-        
-        const count = pendingProcessTurns.length;
-        
-        const toolSummary = [];
-        pendingProcessTurns.forEach(t => {
-          const tools = [...(t.turn.tools || []), ...(t.turn.skills || []), ...(t.turn.subagents || [])];
-          tools.forEach(evt => {
-            const toolName = evt.part?.tool || '';
-            const actionSummary = toolName === 'skill' 
-              ? `📦 skill:${evt.part?.state?.input?.name || ''}` 
-              : toolName === 'task' 
-                ? `🤖 task` 
-                : `${toolIcon(toolName)} ${toolName}`;
-            if (!toolSummary.includes(actionSummary)) {
-              toolSummary.push(actionSummary);
-            }
-          });
-        });
-        
-        const toolsDesc = toolSummary.length > 0 
-          ? `，涉及动作: [${toolSummary.join(', ')}]` 
-          : '';
-          
-        if (typeof window !== 'undefined' && window.console) {
-          window.console.log('[看板折叠] 渲染折叠条：收拢了', count, '个静默过程 turn');
-        }
-        html += `
-          <div class="process-collapse-container">
-            <div class="process-collapse-header">
-              <span>🔍 展开此处收拢的 ${count} 个后台静默探测过程${toolsDesc}</span>
-              <span class="collapse-arrow" style="transition: transform 0.2s;">▼</span>
-            </div>
-            <div class="process-collapse-body" style="display: none;">
-              ${pendingProcessTurns.map(pt => renderTurn(card, pt.turn, pt.index, card.turns.length)).join('')}
-            </div>
-          </div>
-        `;
-        pendingProcessTurns = [];
-      };
-      
       card.turns.forEach((turn, idx) => {
-        if (isPureProcessTurn(turn, idx)) {
-          pendingProcessTurns.push({ turn, index: idx });
-        } else {
-          flushProcessTurns();
-          html += renderTurn(card, turn, idx, card.turns.length);
-        }
+        // 直接平铺展示所有 Turn 气泡，大门洞开不进行任何工具芯片过滤，让用户一览无余地追溯所有后台执行轨迹
+        html += renderTurn(card, turn, idx, card.turns.length, true);
       });
-      
-      flushProcessTurns();
       return html;
     }
 
-    function renderTurn(card, turn, index, totalTurns) {
+    function renderTurn(card, turn, index, totalTurns, forceKeepAllTools = false) {
       const goalHtml = index === 0 && card.taskGoal ? `<div class="message-row user"><div class="bubble user-bubble"><span class="bubble-label">🎯 任务目标</span>${renderLongText(card.taskGoal)}</div><div class="avatar user-avatar">G</div></div>` : '';
       const isLastTurn = index === totalTurns - 1;
       
@@ -2791,7 +2270,7 @@
         </div>
         ${goalHtml}
         ${turn.userMessages.length ? renderUserBubble(turn.userMessages.map((event) => partText(event.part)).join('\n')) : ''}
-        ${renderTurnFinalBubble(card, turn, isLastTurn, index === 0)}
+        ${renderTurnFinalBubble(card, turn, isLastTurn, index === 0, forceKeepAllTools)}
         ${interactiveBubbles}
       </section>`;
     }
@@ -2813,7 +2292,7 @@
       return `<div class="message-row ai"><div class="avatar ai-avatar">AI</div><div class="bubble ai-bubble ${className}"><span class="bubble-label">${label}</span>${renderLongText(card.finalText)}${renderArtifacts(card.artifacts)}</div></div>`;
     }
 
-    function renderTurnFinalBubble(card, turn, isLastTurn, isFirstTurn = false) {
+    function renderTurnFinalBubble(card, turn, isLastTurn, isFirstTurn = false, forceKeepAllTools = false) {
       const status = isLastTurn ? card.todo.status : 'in_progress';
       const label = status === 'completed' ? '📋 最终成果' : status === 'in_progress' ? '📋 当前进展' : '📋 待办内容';
       const className = status === 'in_progress' ? 'progress' : 'result';
@@ -2876,7 +2355,6 @@
           const id = 'pt-' + Math.random().toString(36).slice(2);
           processTextsHtml = `
             <div class="artifact-block" style="margin-top: 8px;">
-              <div class="artifact-title">💬 过程分析</div>
               <div class="collapsible-wrapper">
                 <div id="${id}" class="collapsible-text" style="font-size:13.5px; line-height:1.65; white-space:pre-wrap; color:var(--text-secondary);">${renderMarkdown(combined)}</div>
                 <span class="link-button collapsible-btn" onclick="toggleCollapsibleText('${id}', this)">[展开]</span>
@@ -2892,6 +2370,12 @@
       // 过滤排除 todowrite 等系统工具，以及已被制品区域渲染的读写文件工具、与本轮 Skill 意图重复的底层命令行执行，防冗余重复
       const normalToolsForBubble = (turn.tools || []).filter(t => {
         const tool = t.part?.tool || '';
+        
+        // 如果是在被折叠收拢的后台静默过程栏内部进行展开追溯，则大门洞开完整显示所有工具（包含读写文件及只读诊断命令），绝不二次过滤
+        if (forceKeepAllTools) {
+          return tool !== 'todowrite' && !['ask_user_question', 'ask_permission', 'question'].includes(tool) && !tool.includes('ask_question') && !tool.includes('ask_permission');
+        }
+
         const isReadWrite = ['write', 'write_to_file', 'read', 'read_file', 'view_file', 'replace_file_content', 'multi_replace_file_content'].includes(tool);
         if (isReadWrite) return false;
 
@@ -2953,36 +2437,32 @@
       return `<div class="artifact-block"><div class="artifact-title">📎 制品</div><div class="artifact-list">${chips}</div></div>`;
     }
 
-    // 全局事件委托：监听静默探测过程折叠栏的点击，彻底解决内联 onclick 在严格安全沙箱/CSP 下失效的问题
-    document.addEventListener('click', (event) => {
-      const header = event.target.closest('.process-collapse-header');
-      if (header) {
-        const container = header.closest('.process-collapse-container');
-        if (container) {
-          const body = container.querySelector('.process-collapse-body');
-          const arrow = header.querySelector('.collapse-arrow');
-          if (body) {
-            const isHidden = body.style.display === 'none' || !body.style.display;
-            body.style.display = isHidden ? 'block' : 'none';
-            if (arrow) {
-              arrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-            }
-          }
-        }
-      }
-    });
+    // 普适稳定的折叠切换函数，直接接收 DOM 节点（或者向后兼容接收 ID 字符串），零 ID 依赖，绝对避免在各别老旧 WebView 下的点击失效与高度坍塌
+    window.toggleProcessGroup = function(param) {
+      let body = null;
+      let arrow = null;
 
-    // 备用向后兼容函数
-    window.toggleProcessGroup = function(id) {
-      const el = document.getElementById(id);
-      const icon = document.getElementById('icon-' + id);
-      if (el) {
-        const isHidden = el.style.display === 'none' || !el.style.display;
-        el.style.display = isHidden ? 'block' : 'none';
-        if (icon) {
-          icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+      if (typeof param === 'string') {
+        const el = document.getElementById(param);
+        if (el) {
+          body = el;
+          arrow = document.getElementById('icon-' + param);
+        }
+      } else if (param && param.closest) {
+        const container = param.closest('.process-collapse-container');
+        if (container) {
+          body = container.querySelector('.process-collapse-body');
+          arrow = container.querySelector('.collapse-arrow');
         }
       }
+
+      if (!body) return;
+      const isHidden = body.style.display === 'none' || !body.style.display;
+      body.style.display = isHidden ? 'block' : 'none';
+      if (arrow) {
+        arrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+      console.log('[看板折叠] 切换成功，状态变为:', isHidden ? '已展开' : '已折叠');
     };
 
     function renderToolChipOutput(output) {
