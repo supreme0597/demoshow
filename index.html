@@ -2611,7 +2611,6 @@
         if (pendingProcessTurns.length === 0) return;
         
         const count = pendingProcessTurns.length;
-        const id = 'process-group-' + Math.random().toString(36).slice(2);
         
         const toolSummary = [];
         pendingProcessTurns.forEach(t => {
@@ -2635,11 +2634,11 @@
           
         html += `
           <div class="process-collapse-container">
-            <div class="process-collapse-header" onclick="toggleProcessGroup('${id}')">
+            <div class="process-collapse-header">
               <span>🔍 展开此处收拢的 ${count} 个后台静默探测过程${toolsDesc}</span>
-              <span id="icon-${id}" style="transition: transform 0.2s;">▼</span>
+              <span class="collapse-arrow" style="transition: transform 0.2s;">▼</span>
             </div>
-            <div id="${id}" class="process-collapse-body" style="display: none;">
+            <div class="process-collapse-body" style="display: none;">
               ${pendingProcessTurns.map(pt => renderTurn(card, pt.turn, pt.index, card.turns.length)).join('')}
             </div>
           </div>
@@ -2942,6 +2941,26 @@
       return `<div class="artifact-block"><div class="artifact-title">📎 制品</div><div class="artifact-list">${chips}</div></div>`;
     }
 
+    // 全局事件委托：监听静默探测过程折叠栏的点击，彻底解决内联 onclick 在严格安全沙箱/CSP 下失效的问题
+    document.addEventListener('click', (event) => {
+      const header = event.target.closest('.process-collapse-header');
+      if (header) {
+        const container = header.closest('.process-collapse-container');
+        if (container) {
+          const body = container.querySelector('.process-collapse-body');
+          const arrow = header.querySelector('.collapse-arrow');
+          if (body) {
+            const isHidden = body.style.display === 'none' || !body.style.display;
+            body.style.display = isHidden ? 'block' : 'none';
+            if (arrow) {
+              arrow.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+          }
+        }
+      }
+    });
+
+    // 备用向后兼容函数
     window.toggleProcessGroup = function(id) {
       const el = document.getElementById(id);
       const icon = document.getElementById('icon-' + id);
