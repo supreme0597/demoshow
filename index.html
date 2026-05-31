@@ -407,7 +407,7 @@
       min-width: 0;
       margin: 0;
       color: var(--text-primary);
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 750;
       line-height: 1.35;
       word-break: break-word;
@@ -436,9 +436,16 @@
       overflow: auto;
       padding: 14px;
       color: var(--text-secondary);
-      font-size: 12px;
+      font-size: 14.5px;
       line-height: 1.6;
       word-break: break-word;
+    }
+    .detail-modal-body pre,
+    .detail-modal-body code,
+    .detail-modal-body .tool-chip-cmd,
+    .detail-modal-body .tool-chip-output {
+      font-size: 13.5px !important;
+      line-height: 1.55;
     }
     .detail-modal-body pre,
     .detail-modal-body code,
@@ -490,18 +497,18 @@
       justify-content: space-between;
       gap: 8px;
       color: var(--text-primary);
-      font-size: 10px;
+      font-size: 13.5px;
       font-weight: 700;
     }
     .skill-meta {
       margin-top: 6px;
-      font-size: 11px;
+      font-size: 13px;
       line-height: 1.6;
       color: var(--text-secondary);
       word-break: break-all;
     }
     .skill-meta h2, .skill-meta h3, .skill-meta h4 {
-      font-size: 12px;
+      font-size: 14.5px;
       font-weight: 700;
       margin: 10px 0 4px;
       color: var(--text-primary);
@@ -521,11 +528,11 @@
       padding: 1px 3px;
       border-radius: 3px;
       font-family: monospace;
-      font-size: 9.5px;
+      font-size: 12px;
     }
     .skill-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
     .skill-link:hover { text-decoration: underline; }
-    pre.diff { margin: 5px 0 0; padding: 7px; max-height: 180px; overflow: auto; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-size: 10px; line-height: 1.35; }
+    pre.diff { margin: 5px 0 0; padding: 7px; max-height: 180px; overflow: auto; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); font-size: 12.5px; line-height: 1.35; }
     .inline-message { margin: 2px 0; }
     .empty { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: 12px; text-align: center; }
     .link-button { color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px; white-space: nowrap; }
@@ -1221,7 +1228,17 @@
           const inputTodos = event.part.state?.input?.todos || [];
           const msgIdx = event.messageIndex;
           
-          const transitionedTodos = new Set();
+          const completedTransitions = [];
+          const inProgressTransitions = [];
+          const activeBefore = [];
+          
+          // 在更新状态前，从 prevStates 状态中收集当前已经在进行中 (in_progress) 的活跃卡片
+          for (const [content, status] of prevStates.entries()) {
+            if (status === 'in_progress') {
+              activeBefore.push(content);
+            }
+          }
+          
           inputTodos.forEach(t => {
             const lastStatus = prevStates.get(t.content) || 'pending';
             // 判定条件扩大：不仅包含开始激活，还包含已在进行中但本次宣告完成的终结跃迁
@@ -1230,15 +1247,22 @@
               (lastStatus === 'in_progress' && t.status === 'completed');
             
             if (isTransition) {
-              transitionedTodos.add(t.content);
+              if (t.status === 'completed') {
+                completedTransitions.push(t.content);
+              } else {
+                inProgressTransitions.push(t.content);
+              }
             }
             prevStates.set(t.content, t.status);
           });
           
-          if (transitionedTodos.size > 0) {
+          if (completedTransitions.length > 0 || inProgressTransitions.length > 0) {
             epochBoundaries.push({
               startMsgIdx: msgIdx,
-              activeTodoContents: Array.from(transitionedTodos)
+              completedTransitions,
+              inProgressTransitions,
+              activeBefore,
+              activeTodoContents: [...completedTransitions, ...inProgressTransitions]
             });
           }
         }
@@ -1335,11 +1359,26 @@
           }
           
           if (matchedCards.length > 0) {
-            // NOTE: 若这是触发跃迁的当轮消息本身，则分发到这批发生跃迁的所有卡片（包括结项 A 与启动 B）
-            // 若是随后的消息，则进行时序隔离，排除已 completed 或 pending 的卡片，使消息仅流向当前活跃的进行中卡片
-            const filteredCards = (msgIndex === activeEpoch.startMsgIdx)
-              ? matchedCards
-              : matchedCards.filter(c => c.tempStatus === 'in_progress');
+            // NOTE: 若这是触发跃迁的当轮消息本身，进行结项与启动的智能去重：
+            // 如果同时存在结项任务和新启动任务，则仅分发给结项任务，防止结项消息外溢成为新任务的第一条消息！
+            let filteredCards = [];
+            if (msgIndex === activeEpoch.startMsgIdx) {
+              if (activeEpoch.completedTransitions && activeEpoch.completedTransitions.length > 0) {
+                // 1. 优先发给刚刚被结项的已完成任务，防止其外溢
+                filteredCards = cards.filter(c => activeEpoch.completedTransitions.includes(c.todo.content));
+              } else if (activeEpoch.activeBefore && activeEpoch.activeBefore.length > 0) {
+                // 2. 无结项但有新启动时，将规划消息分发给跃迁前就已经在进行的活跃任务（作为其开发收尾阶段）
+                filteredCards = cards.filter(c => activeEpoch.activeBefore.includes(c.todo.content));
+              } else if (initCard) {
+                // 3. 都没有且前置调研卡片存在时，归宿到前置调研卡片
+                filteredCards = [initCard];
+              } else {
+                filteredCards = matchedCards;
+              }
+            } else {
+              // 随后的消息，排除已 completed 或 pending 的卡片，使消息仅流向当前活跃的进行中卡片
+              filteredCards = matchedCards.filter(c => c.tempStatus === 'in_progress');
+            }
             
             const finalCards = filteredCards.length > 0 ? filteredCards : matchedCards;
             
