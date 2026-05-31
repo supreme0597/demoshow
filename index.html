@@ -1293,7 +1293,7 @@
       }
 
       // 🔴 严格 Epoch 时序切片自适应探测：
-      // 在开始分派前，遍历 timeline 找出所有状态由 todo/pending 流转为 in_progress 或 completed 的跃迁时刻与目标任务
+      // 在开始分派前，遍历 timeline 找出所有状态由 todo/pending 流转为 in_progress 或 completed，以及由 in_progress 流转为 completed 的跃迁时刻与目标任务
       const epochBoundaries = [];
       let prevStates = new Map();
       
@@ -1302,19 +1302,24 @@
           const inputTodos = event.part.state?.input?.todos || [];
           const msgIdx = event.messageIndex;
           
-          let transitionedTodo = null;
+          const transitionedTodos = new Set();
           inputTodos.forEach(t => {
             const lastStatus = prevStates.get(t.content) || 'pending';
-            if ((lastStatus === 'pending' || lastStatus === 'todo') && (t.status === 'in_progress' || t.status === 'completed')) {
-              transitionedTodo = t.content;
+            // 判定条件扩大：不仅包含开始激活，还包含已在进行中但本次宣告完成的终结跃迁
+            const isTransition = 
+              ((lastStatus === 'pending' || lastStatus === 'todo') && (t.status === 'in_progress' || t.status === 'completed')) ||
+              (lastStatus === 'in_progress' && t.status === 'completed');
+            
+            if (isTransition) {
+              transitionedTodos.add(t.content);
             }
             prevStates.set(t.content, t.status);
           });
           
-          if (transitionedTodo) {
+          if (transitionedTodos.size > 0) {
             epochBoundaries.push({
               startMsgIdx: msgIdx,
-              activeTodoContent: transitionedTodo
+              activeTodoContents: Array.from(transitionedTodos)
             });
           }
         }
@@ -1376,13 +1381,24 @@
           for (const event of events) {
             if (event.type === 'tool') {
               if (event.part?.tool === 'todowrite') continue;
-              const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, fallbackCard || currentCard, parentCard);
-              if (matched) targetSet.add(matched);
+              let matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, fallbackCard || currentCard, parentCard);
+              if (matched) {
+                // NOTE: 严格纪元下的指派时序防护：禁止开发动作飘向已完结 (completed) 或尚未开始 (pending) 的卡片，重定向回当前进行中的活跃纪元卡片
+                if (isStrictEpochMode && matched !== currentCard && (matched.tempStatus === 'completed' || matched.tempStatus === 'pending')) {
+                  matched = currentCard;
+                }
+                targetSet.add(matched);
+              }
             } else if (event.type === 'patch' || event.type === 'diffs') {
               const artifacts = artifactsFromEvent(event);
               for (const art of artifacts) {
-                const matched = matchArtifactToCard(art, cards) || fallbackCard || currentCard;
-                if (matched) targetSet.add(matched);
+                let matched = matchArtifactToCard(art, cards) || fallbackCard || currentCard;
+                if (matched) {
+                  if (isStrictEpochMode && matched !== currentCard && (matched.tempStatus === 'completed' || matched.tempStatus === 'pending')) {
+                    matched = currentCard;
+                  }
+                  targetSet.add(matched);
+                }
               }
             }
           }
@@ -1392,16 +1408,25 @@
 
         // 🔴 智能判断是否启动严格时序分块（Strict Epoch Mode）归因
         if (isStrictEpochMode && !isPreambleWindow) {
-          // 找出当前 msgIndex 所属的最新的活跃纪元任务
+          // 找出当前 msgIndex 所属的最新的活跃纪元任务（包含该时刻所有发生跃迁的任务）
           const activeEpoch = [...epochBoundaries].reverse().find(eb => msgIndex >= eb.startMsgIdx);
-          let matchedCard = null;
-          if (activeEpoch) {
-            matchedCard = cards.find(c => c.todo.content === activeEpoch.activeTodoContent);
+          let matchedCards = [];
+          if (activeEpoch && activeEpoch.activeTodoContents) {
+            matchedCards = cards.filter(c => activeEpoch.activeTodoContents.includes(c.todo.content));
           }
           
-          if (matchedCard) {
-            currentCard = matchedCard;
-            targetCards.add(matchedCard);
+          if (matchedCards.length > 0) {
+            // NOTE: 若这是触发跃迁的当轮消息本身，则分发到这批发生跃迁的所有卡片（包括结项 A 与启动 B）
+            // 若是随后的消息，则进行时序隔离，排除已 completed 或 pending 的卡片，使消息仅流向当前活跃的进行中卡片
+            const filteredCards = (msgIndex === activeEpoch.startMsgIdx)
+              ? matchedCards
+              : matchedCards.filter(c => c.tempStatus === 'in_progress');
+            
+            const finalCards = filteredCards.length > 0 ? filteredCards : matchedCards;
+            
+            const inProgressCard = finalCards.find(c => c.tempStatus === 'in_progress');
+            currentCard = inProgressCard || finalCards[0];
+            finalCards.forEach(c => targetCards.add(c));
           } else {
             // 如果处于首版 todowrite 之后的过渡区，fallback 到规划的第一个真实任务
             const fallbackIndex = initCard ? 1 : 0;
@@ -1456,6 +1481,10 @@
           const cardPendingUsers = (isPreambleWindow && card !== initCard) ? [] : pendingUserEvents;
           // 对这唯一的一张 Card 仅创建一次本轮 of Turn，本轮有用户输入则传入，无则为 []
           const turn = ensureTurn(card, cardPendingUsers, null);
+          const turnTime = events.length > 0 ? Math.min(...events.map(e => e.time)) : null;
+          if (turnTime && !turn.time) {
+            turn.time = turnTime;
+          }
           turn.aiTexts.push(...textEvents);
           turn.reasoning.push(...reasoningEvents);
           
@@ -1469,7 +1498,11 @@
                 // NOTE: todowrite 是系统级的全局看板状态更新工具，不应作为具体卡片的实质执行步骤展示，予以过滤
               } else {
                 if (developmentTargetCards.size && card === initCard) continue;
-                const matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
+                let matched = matchToolArtifactToCard(event, cards) || pickAssignableCard(event, cards, currentCard, parentCard);
+                // NOTE: 严格纪元下的指派时序防护：如果匹配的卡片已结项或尚未开始，且非当前活跃纪元，则强制重定向归宿到当前活跃卡片
+                if (isStrictEpochMode && matched !== currentCard && (matched.tempStatus === 'completed' || matched.tempStatus === 'pending')) {
+                  matched = currentCard;
+                }
                 if (matched === card) {
                   assignToolToTurn(event, turn);
                   turn.lastEventIndexOfNonText = timeline.indexOf(event);
@@ -1477,7 +1510,7 @@
               }
             } else if (event.type === 'patch' || event.type === 'diffs') {
               if (developmentTargetCards.size && card === initCard) continue;
-              distributeArtifactEvent(event, cards, card, turn);
+              distributeArtifactEvent(event, cards, card, turn, isStrictEpochMode);
               turn.lastEventIndexOfNonText = timeline.indexOf(event);
             }
           }
@@ -1514,14 +1547,18 @@
       }
     }
 
-    function distributeArtifactEvent(event, cards, fallbackCard, fallbackTurn) {
+    function distributeArtifactEvent(event, cards, fallbackCard, fallbackTurn, isStrictEpochMode = false) {
       const artifacts = artifactsFromEvent(event);
       if (!artifacts.length) {
         if (fallbackTurn) fallbackTurn.rawArtifacts.push(event);
         return;
       }
       for (const artifact of artifacts) {
-        const target = matchArtifactToCard(artifact, cards) || fallbackCard;
+        let target = matchArtifactToCard(artifact, cards) || fallbackCard;
+        // NOTE: 严格纪元下的指派时序防护：如果匹配的卡片已结项或尚未开始，且非当前活跃纪元，则强制重定向归宿到当前活跃卡片 (fallbackCard)
+        if (isStrictEpochMode && target !== fallbackCard && (target.tempStatus === 'completed' || target.tempStatus === 'pending')) {
+          target = fallbackCard;
+        }
         if (target) {
           target.rawArtifacts.push({ type: 'artifact', artifact, role: event.role, time: event.time, message: event.message, part: event.part });
           // NOTE: 无论 matchArtifactToCard 是否找到了特定卡片，都将制品推入当前 turn 的 rawArtifacts
@@ -1773,6 +1810,9 @@
     function fallbackCards(timeline) {
       const card = createCard({ content: 'Session 回顾', status: 'completed', priority: 'medium' }, 0);
       const turn = createTurn('user');
+      if (timeline.length > 0) {
+        turn.time = Math.min(...timeline.map(e => e.time));
+      }
       card.turns.push(turn);
       for (const event of timeline) {
         if (event.type === 'text' && event.role === 'user') turn.userMessages.push(event);
@@ -2412,7 +2452,10 @@
       });
 
       return `<section class="turn-block">
-        <div class="artifact-title">Turn ${index + 1}</div>
+        <div class="artifact-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+          <span>Turn ${index + 1}</span>
+          ${turn.time ? `<span style="font-size: 11px; font-weight: normal; color: var(--text-secondary); opacity: 0.8;">🕒 ${formatTime(turn.time)}</span>` : ''}
+        </div>
         ${goalHtml}
         ${turn.userMessages.length ? renderUserBubble(turn.userMessages.map((event) => partText(event.part)).join('\n')) : ''}
         ${renderTurnFinalBubble(card, turn, isLastTurn)}
@@ -2979,6 +3022,22 @@
       }
       return clean;
     }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '';
+      let date = new Date(timestamp);
+      if (timestamp < 10000000000) {
+        date = new Date(timestamp * 1000);
+      }
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+    }
+
     // NOTE: 智能提取交互工具反馈 output 中等号 "=" 后面的真实用户答案，剥离提问与系统格式。完美支持多等号（多提问）边界。
     function getCleanUserAnswer(out) {
       if (!out) return '';
