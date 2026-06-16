@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fixed Five Layer Directed Graph</title>
+  <style>
+    :root {
+      --ink: #141414;
+      --paper: #fbfbf7;
+      --grid: #dcded8;
+      --blue: #27336b;
+      --green: #57bd84;
+      --warm: #f6f1e7;
+      --line: #5f676d;
+      --muted: #68706a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--paper);
+      background-size: 20px 20px;
+      font-family: "Aptos", "Microsoft YaHei", sans-serif;
+    }
+
+    .stage {
+      width: min(1380px, calc(100vw - 24px));
+      min-width: 1180px;
+      margin: 16px auto;
+      padding: 0;
+    }
+
+    .overview-flow {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      margin: 0 6px 18px;
+    }
+
+    .overview-inner {
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 60px;
+      border: 1px solid rgba(39, 51, 107, 0.56);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    .overview-node {
+      display: inline-grid;
+      place-items: center;
+      min-width: 132px;
+      height: 34px;
+      padding: 0 18px;
+      border: 1px solid rgba(20, 20, 20, 0.72);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .overview-arrow {
+      position: relative;
+      width: 54px;
+      height: 14px;
+      flex: 0 0 54px;
+    }
+
+    .overview-arrow::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 7px;
+      top: 6px;
+      height: 1.3px;
+      background: #5f676d;
+    }
+
+    .overview-arrow::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 2px;
+      border-left: 8px solid #5f676d;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+    }
+
+    .graph {
+      position: relative;
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      grid-template-rows: 82px 74px 74px 320px 112px;
+      gap: 22px 12px;
+      min-height: 728px;
+      padding: 0 6px;
+    }
+
+    .edge-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .layer {
+      position: relative;
+      display: grid;
+      grid-column: 2;
+      align-items: center;
+      border: 1px solid var(--blue);
+      border-radius: 7px;
+      background: rgba(251, 251, 247, 0.78);
+      box-shadow: 0 1px 0 rgba(20, 20, 20, 0.04);
+    }
+
+    .layer[data-frame="false"] {
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .layer-label {
+      position: relative;
+      z-index: 40;
+      display: grid;
+      align-items: center;
+      justify-items: end;
+      padding-right: 10px;
+      color: #1f2a5c;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.25;
+      text-align: right;
+      letter-spacing: 0;
+      white-space: pre-line;
+    }
+
+    .row {
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      width: 100%;
+      height: 100%;
+      padding: 12px 18px;
+      column-gap: 18px;
+    }
+
+    .modules-row {
+      display: grid;
+      grid-template-columns: repeat(var(--module-count), minmax(0, 1fr));
+      gap: 20px;
+      width: 100%;
+      height: 100%;
+      padding: 34px 34px 20px;
+      align-items: stretch;
+    }
+
+    .node {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      z-index: 30;
+      color: var(--ink);
+      border: 1px solid var(--ink);
+      background: rgba(255, 255, 255, 0.92);
+      font-size: 13px;
+      line-height: 1.15;
+      letter-spacing: 0;
+      white-space: pre-line;
+      text-align: center;
+      user-select: none;
+    }
+
+    .node.ellipse {
+      width: 166px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 0 14px;
+    }
+
+    .node.rect.small {
+      width: 142px;
+      height: 30px;
+      border-radius: 7px;
+    }
+
+    .node.rect.medium {
+      width: 120px;
+      height: 38px;
+      border-radius: 7px;
+      padding: 0 8px;
+    }
+
+    .module {
+      position: relative;
+      min-width: 0;
+      border: 1px solid var(--blue);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.76);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+    }
+
+    .module-title {
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 0 12px;
+      background: var(--paper);
+      font-size: 17px;
+      line-height: 1;
+      font-weight: 700;
+      color: #000;
+      white-space: nowrap;
+      z-index: 35;
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows), minmax(34px, 1fr));
+      align-items: center;
+      justify-items: center;
+      height: 100%;
+      padding: 26px 22px 18px;
+    }
+
+    .node.text {
+      border: 0;
+      background: transparent;
+      min-width: 34px;
+      min-height: 22px;
+      padding: 2px 4px;
+      max-width: min(78px, 100%);
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 30;
+      overflow-wrap: anywhere;
+    }
+
+    .node.text.loop-node {
+      font-weight: 600;
+    }
+
+    .loop-badge {
+      position: absolute;
+      top: -13px;
+      left: -16px;
+      color: #8a4b08;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .edge {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .loop-edge {
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    @media (max-width: 1040px) {
+      .stage {
+        width: 100vw;
+        min-width: 1180px;
+        margin: 10px 0;
+      }
+
+      .graph {
+        padding: 0 4px;
+      }
+
+      .modules-row {
+        gap: 18px;
+        padding-left: 30px;
+        padding-right: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section id="overview-flow" class="overview-flow" aria-label="top direction flow"></section>
+    <section id="graph" class="graph" aria-label="fixed five layer directed graph">
+      <svg id="edge-layer" class="edge-layer" aria-hidden="true"></svg>
+    </section>
+  </main>
+
+  <script src="graph-data.fallback.js" charset="utf-8"></script>
+  <script id="fallback-graph-data" type="application/json">
+{
+  "meta": {
+    "title": "fixed-five-layer-directed-graph",
+    "version": "1.0.0"
+  },
+  "layout": {
+    "type": "fixed-vertical-layers",
+    "layerCount": 5,
+    "moduleRowWrap": false,
+    "edgeRouting": "auto",
+    "theme": {
+      "defaultEdgeColor": "#171717",
+      "emphasisEdgeColor": "#18a55f",
+      "layerBorderColor": "#27336b",
+      "nodeBorderColor": "#1b1b1b"
+    }
+  },
+  "layers": [
+    { "id": "layer.top", "order": 1, "kind": "ellipse-row", "frame": false, "slots": 5, "nodeDefaults": { "shape": "ellipse", "size": "large" } },
+    { "id": "layer.inputs", "order": 2, "kind": "rect-row", "frame": true, "slots": 5, "nodeDefaults": { "shape": "rect", "size": "small" } },
+    { "id": "layer.context", "order": 3, "kind": "rect-row", "frame": true, "slots": 5, "nodeDefaults": { "shape": "rect", "size": "medium" } },
+    { "id": "layer.modules", "order": 4, "kind": "module-row", "frame": true, "wrap": false, "nodeDefaults": { "shape": "text" } },
+    { "id": "layer.outputs", "order": 5, "kind": "result-row", "frame": true, "slots": 7, "nodeDefaults": { "shape": "rect", "size": "medium" } }
+  ],
+  "nodes": [
+    { "id": "top.aaa", "label": "AAA", "layer": "layer.top", "slot": 1 },
+    { "id": "top.bbb", "label": "BBB", "layer": "layer.top", "slot": 2 },
+    { "id": "top.ccc", "label": "CCC", "layer": "layer.top", "slot": 3 },
+    { "id": "top.ddd", "label": "DDD", "layer": "layer.top", "slot": 4 },
+    { "id": "top.eee", "label": "EEE", "layer": "layer.top", "slot": 5 },
+    { "id": "input.a", "label": "A", "layer": "layer.inputs", "slot": 1 },
+    { "id": "input.b", "label": "B", "layer": "layer.inputs", "slot": 2 },
+    { "id": "input.c", "label": "C", "layer": "layer.inputs", "slot": 3 },
+    { "id": "input.d", "label": "D", "layer": "layer.inputs", "slot": 4 },
+    { "id": "input.e", "label": "E", "layer": "layer.inputs", "slot": 5 },
+    { "id": "context.aaa", "label": "AAA", "layer": "layer.context", "slot": 1 },
+    { "id": "context.bbb", "label": "bbb", "layer": "layer.context", "slot": 3 },
+    { "id": "context.ccc", "label": "CCC", "layer": "layer.context", "slot": 5 },
+    { "id": "output.1", "label": "xxxxxxxxxxxxxx", "layer": "layer.outputs", "slot": 1 },
+    { "id": "output.2", "label": "xxxxxxxxx", "layer": "layer.outputs", "slot": 2 },
+    { "id": "output.3", "label": "xxxxx", "layer": "layer.outputs", "slot": 3 },
+    { "id": "output.4", "label": "xxxxxx", "layer": "layer.outputs", "slot": 4 },
+    { "id": "output.5", "label": "xxxxxx", "layer": "layer.outputs", "slot": 5 },
+    { "id": "output.6", "label": "xxxxxx", "layer": "layer.outputs", "slot": 6 },
+    { "id": "output.7", "label": "xxxxxxxxxxxxxx", "layer": "layer.outputs", "slot": 7 }
+  ],
+  "modules": [
+    { "id": "module.understand", "label": "理解", "layer": "layer.modules", "order": 1, "grid": { "rows": 3, "cols": 3 }, "nodes": [
+      { "id": "understand.bbb", "label": "BBB", "row": 1, "col": 1 },
+      { "id": "understand.aaaa", "label": "AAAA", "row": 1, "col": 2 },
+      { "id": "understand.cccc", "label": "CCCC\nCC", "row": 1, "col": 3 },
+      { "id": "understand.dd", "label": "DD", "row": 2, "col": 1 }
+    ] },
+    { "id": "module.plan", "label": "规划", "layer": "layer.modules", "order": 2, "grid": { "rows": 3, "cols": 3 }, "nodes": [
+      { "id": "plan.fff", "label": "FFF", "row": 2, "col": 1 },
+      { "id": "plan.eeeee", "label": "EEEEE\nEEE", "row": 2, "col": 2 },
+      { "id": "plan.ggg", "label": "GGG\nG", "row": 2, "col": 3 }
+    ] },
+    { "id": "module.execute", "label": "执行", "layer": "layer.modules", "order": 3, "grid": { "rows": 4, "cols": 3 }, "nodes": [
+      { "id": "execute.iii", "label": "III", "row": 1, "col": 1 },
+      { "id": "execute.hh", "label": "HH", "row": 1, "col": 2 },
+      { "id": "execute.kkk", "label": "KKK", "row": 1, "col": 3 },
+      { "id": "execute.jjj", "label": "JJJ", "row": 2, "col": 1 },
+      { "id": "execute.mid", "label": "...", "row": 2, "col": 2 },
+      { "id": "execute.lll", "label": "LLL", "row": 2, "col": 3 },
+      { "id": "execute.mmmmm", "label": "MMMMM", "row": 3, "col": 2 }
+    ] },
+    { "id": "module.verify", "label": "验证", "layer": "layer.modules", "order": 4, "grid": { "rows": 4, "cols": 3 }, "nodes": [
+      { "id": "verify.nnn", "label": "NNN", "row": 1, "col": 2, "loop": true },
+      { "id": "verify.oooo", "label": "OOOO", "row": 2, "col": 2 },
+      { "id": "verify.pp", "label": "PP", "row": 3, "col": 1 },
+      { "id": "verify.qqqq", "label": "QQQQ", "row": 3, "col": 3 }
+    ] }
+  ],
+  "edges": [
+    { "id": "e.top-aaa-understand", "from": "top.aaa", "to": "module.understand", "color": "#18a55f", "direction": "down" },
+    { "id": "e.top-bbb-input-b", "from": "top.bbb", "to": "input.b", "color": "#18a55f", "direction": "down" },
+    { "id": "e.top-ccc-input-c", "from": "top.ccc", "to": "input.c", "color": "#18a55f", "direction": "down" },
+    { "id": "e.top-ddd-input-d", "from": "top.ddd", "to": "input.d", "color": "#18a55f", "direction": "down" },
+    { "id": "e.top-eee-verify", "from": "top.eee", "to": "module.verify", "color": "#18a55f", "direction": "down" },
+    { "id": "e.understand-top-bbb", "from": "module.understand", "to": "top.bbb", "color": "#18a55f", "direction": "up" },
+    { "id": "e.plan-top-ccc", "from": "module.plan", "to": "top.ccc", "color": "#18a55f", "direction": "up" },
+    { "id": "e.execute-top-ddd", "from": "module.execute", "to": "top.ddd", "color": "#18a55f", "direction": "up" },
+    { "id": "e.input-b-plan", "from": "input.b", "to": "module.plan", "color": "#18a55f", "direction": "down" },
+    { "id": "e.input-c-execute", "from": "input.c", "to": "module.execute", "color": "#18a55f", "direction": "down" },
+    { "id": "e.input-d-verify", "from": "input.d", "to": "module.verify", "color": "#18a55f", "direction": "down" },
+    { "id": "e.input-e-verify", "from": "input.e", "to": "module.verify", "color": "#18a55f", "direction": "down" },
+    { "id": "e.understand-module-aaaa", "from": "module.understand", "to": "understand.aaaa", "color": "#171717", "direction": "down" },
+    { "id": "e.understand-bbb-aaaa", "from": "understand.bbb", "to": "understand.aaaa", "color": "#171717", "direction": "right" },
+    { "id": "e.understand-aaaa-cccc", "from": "understand.aaaa", "to": "understand.cccc", "color": "#171717", "direction": "right" },
+    { "id": "e.understand-bbb-dd", "from": "understand.bbb", "to": "understand.dd", "color": "#171717", "direction": "down" },
+    { "id": "e.understand-cccc-dd", "from": "understand.cccc", "to": "understand.dd", "color": "#171717", "direction": "left" },
+    { "id": "e.understand-cccc-module", "from": "understand.cccc", "to": "module.understand", "color": "#171717", "direction": "up" },
+    { "id": "e.plan-fff-eeeee", "from": "plan.fff", "to": "plan.eeeee", "color": "#18a55f", "direction": "right" },
+    { "id": "e.plan-eeeee-ggg", "from": "plan.eeeee", "to": "plan.ggg", "color": "#18a55f", "direction": "right" },
+    { "id": "e.plan-ggg-fff", "from": "plan.ggg", "to": "plan.fff", "color": "#171717", "direction": "left" },
+    { "id": "e.execute-iii-jjj", "from": "execute.iii", "to": "execute.jjj", "color": "#171717", "direction": "down" },
+    { "id": "e.execute-hh-mmmmm", "from": "execute.hh", "to": "execute.mmmmm", "color": "#171717", "direction": "down" },
+    { "id": "e.execute-kkk-lll", "from": "execute.kkk", "to": "execute.lll", "color": "#171717", "direction": "down" },
+    { "id": "e.execute-jjj-mmmmm", "from": "execute.jjj", "to": "execute.mmmmm", "color": "#18a55f", "direction": "right" },
+    { "id": "e.execute-lll-mmmmm", "from": "execute.lll", "to": "execute.mmmmm", "color": "#171717", "direction": "left" },
+    { "id": "e.verify-nnn-oooo", "from": "verify.nnn", "to": "verify.oooo", "color": "#171717", "direction": "down" },
+    { "id": "e.verify-oooo-pp", "from": "verify.oooo", "to": "verify.pp", "color": "#171717", "direction": "down-left" },
+    { "id": "e.verify-pp-qqqq", "from": "verify.pp", "to": "verify.qqqq", "color": "#171717", "direction": "right" },
+    { "id": "e.understand-output1", "from": "understand.dd", "to": "output.1", "color": "#18a55f", "direction": "down" },
+    { "id": "e.understand-output2", "from": "understand.bbb", "to": "output.2", "color": "#18a55f", "direction": "down" },
+    { "id": "e.understand-output3", "from": "understand.bbb", "to": "output.3", "color": "#18a55f", "direction": "down" },
+    { "id": "e.plan-output4", "from": "plan.eeeee", "to": "output.4", "color": "#18a55f", "direction": "down" },
+    { "id": "e.execute-output5", "from": "execute.jjj", "to": "output.5", "color": "#18a55f", "direction": "down" },
+    { "id": "e.execute-output6", "from": "execute.mmmmm", "to": "output.6", "color": "#18a55f", "direction": "down" },
+    { "id": "e.execute-output7", "from": "execute.iii", "to": "output.7", "color": "#18a55f", "direction": "down" }
+  ]
+}
+  </script>
+
+  <script>
+    const overviewEl = document.querySelector("#overview-flow");
+    const graphEl = document.querySelector("#graph");
+    const svgEl = document.querySelector("#edge-layer");
+    const nodeIndex = new Map();
+    const namespace = "http://www.w3.org/2000/svg";
+    let graphData;
+
+    async function loadGraphData() {
+      try {
+        const response = await fetch("graph-data.json", { cache: "no-store" });
+        if (!response.ok) throw new Error("graph-data.json not available");
+        return response.json();
+      } catch {
+        if (window.FALLBACK_GRAPH_DATA) return window.FALLBACK_GRAPH_DATA;
+        return JSON.parse(document.querySelector("#fallback-graph-data").textContent);
+      }
+    }
+
+    function el(tag, className, attrs = {}) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      for (const [key, value] of Object.entries(attrs)) {
+        if (key === "text") element.textContent = value;
+        else if (key === "style") Object.assign(element.style, value);
+        else element.setAttribute(key, value);
+      }
+      return element;
+    }
+
+    function renderGraph(data) {
+      graphData = data;
+      graphEl.querySelectorAll(".layer, .layer-label").forEach((layer) => layer.remove());
+      nodeIndex.clear();
+
+      const layers = [...data.layers].sort((a, b) => a.order - b.order);
+      for (const layer of layers) {
+        const labelEl = el("div", "layer-label", { text: layer.label || "" });
+        labelEl.style.gridRow = String(layer.order);
+        labelEl.style.gridColumn = "1";
+
+        const layerEl = el("div", "layer", {
+          "data-id": layer.id,
+          "data-frame": String(layer.frame !== false)
+        });
+        layerEl.style.gridRow = String(layer.order);
+        layerEl.style.gridColumn = "2";
+        nodeIndex.set(layer.id, layerEl);
+
+        if (layer.kind === "module-row") renderModules(layerEl, data.modules || []);
+        else renderLayerNodes(layerEl, layer, data.nodes.filter((node) => node.layer === layer.id));
+
+        graphEl.appendChild(labelEl);
+        graphEl.appendChild(layerEl);
+      }
+
+      requestAnimationFrame(drawEdges);
+    }
+
+    function renderOverview(data) {
+      const flow = data.overview || {
+        nodes: ["需求对齐", "方案设计", "编码实现", "问题收敛"]
+      };
+      const nodes = flow.nodes || [];
+      const inner = el("div", "overview-inner");
+
+      overviewEl.replaceChildren();
+      nodes.forEach((node, index) => {
+        const label = typeof node === "string" ? node : node.label;
+        inner.appendChild(el("div", "overview-node", { text: label }));
+        if (index < nodes.length - 1) inner.appendChild(el("span", "overview-arrow"));
+      });
+      overviewEl.appendChild(inner);
+    }
+
+    function renderLayerNodes(layerEl, layer, nodes) {
+      const row = el("div", "row");
+      row.style.gridTemplateColumns = `repeat(${layer.slots}, minmax(0, 1fr))`;
+      const defaults = layer.nodeDefaults || {};
+
+      for (const node of nodes) {
+        const shape = node.shape || defaults.shape || "rect";
+        const size = node.size || defaults.size || "medium";
+        const nodeEl = el("div", `node ${shape} ${size}`, {
+          "data-id": node.id,
+          text: node.label
+        });
+        nodeEl.style.gridColumn = String(node.slot);
+        row.appendChild(nodeEl);
+        nodeIndex.set(node.id, nodeEl);
+      }
+
+      layerEl.appendChild(row);
+    }
+
+    function renderModules(layerEl, modules) {
+      const row = el("div", "modules-row");
+      const sorted = [...modules].sort((a, b) => a.order - b.order);
+      row.style.setProperty("--module-count", sorted.length);
+
+      for (const module of sorted) {
+        const moduleEl = el("section", "module", { "data-id": module.id });
+        const title = el("div", "module-title", { text: module.label });
+        const grid = el("div", "module-grid");
+        grid.style.setProperty("--rows", module.grid.rows);
+        grid.style.setProperty("--cols", module.grid.cols);
+
+        for (const node of module.nodes) {
+          const textNode = el("div", `node text${node.loop ? " loop-node" : ""}`, {
+            "data-id": node.id,
+            text: node.label
+          });
+          textNode.style.gridRow = String(node.row);
+          textNode.style.gridColumn = String(node.col);
+
+          if (node.loop) {
+            textNode.dataset.loop = "true";
+            textNode.appendChild(el("span", "loop-badge", { text: "loop" }));
+          }
+
+          grid.appendChild(textNode);
+          nodeIndex.set(node.id, textNode);
+        }
+
+        moduleEl.append(title, grid);
+        row.appendChild(moduleEl);
+        nodeIndex.set(module.id, moduleEl);
+      }
+
+      layerEl.appendChild(row);
+    }
+
+    function drawEdges() {
+      const graphBox = graphEl.getBoundingClientRect();
+      svgEl.setAttribute("viewBox", `0 0 ${graphBox.width} ${graphBox.height}`);
+      svgEl.setAttribute("width", graphBox.width);
+      svgEl.setAttribute("height", graphBox.height);
+      svgEl.replaceChildren();
+
+      const defs = document.createElementNS(namespace, "defs");
+      svgEl.appendChild(defs);
+      const markerCache = new Map();
+
+      for (const node of graphData.modules.flatMap((module) => module.nodes)) {
+        if (node.loop) drawLoop(node.id, markerCache, defs, graphBox);
+      }
+
+      for (const edge of graphData.edges) {
+        const fromEl = nodeIndex.get(edge.from);
+        const toEl = nodeIndex.get(edge.to);
+        if (!fromEl || !toEl) continue;
+
+        const color = edge.color || graphData.layout.theme.defaultEdgeColor;
+        const markerId = getMarker(color, markerCache, defs);
+        const path = document.createElementNS(namespace, "path");
+        path.setAttribute("class", "edge");
+        path.setAttribute("d", routeEdge(fromEl, toEl, graphBox, edge.direction));
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", color === graphData.layout.theme.emphasisEdgeColor ? "1.12" : "1");
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        svgEl.appendChild(path);
+      }
+    }
+
+    function getMarker(color, cache, defs) {
+      const key = color.replace(/[^a-zA-Z0-9]/g, "");
+      const id = `arrow-${key}`;
+      if (cache.has(id)) return id;
+
+      const marker = document.createElementNS(namespace, "marker");
+      marker.setAttribute("id", id);
+      marker.setAttribute("viewBox", "0 0 10 10");
+      marker.setAttribute("refX", "8.8");
+      marker.setAttribute("refY", "5");
+      marker.setAttribute("markerWidth", "9");
+      marker.setAttribute("markerHeight", "9");
+      marker.setAttribute("orient", "auto-start-reverse");
+
+      const arrow = document.createElementNS(namespace, "path");
+      arrow.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+      arrow.setAttribute("fill", color);
+      marker.appendChild(arrow);
+      defs.appendChild(marker);
+      cache.set(id, true);
+      return id;
+    }
+
+    function routeEdge(fromEl, toEl, graphBox, direction) {
+      const from = box(fromEl, graphBox);
+      const to = box(toEl, graphBox);
+      const returnsToOwnModule = toEl.classList.contains("module") && toEl.contains(fromEl);
+      if (returnsToOwnModule) return routeChildToModule(from, to, direction);
+
+      const start = anchor(from, direction, true, to, fromEl, toEl);
+      const end = anchor(to, direction, false, from, toEl, fromEl);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+
+      if (direction && direction.includes("up")) {
+        const bend = Math.max(34, Math.abs(dy) * 0.42);
+        return `M ${start.x} ${start.y} C ${start.x} ${start.y - bend}, ${end.x} ${end.y + bend}, ${end.x} ${end.y}`;
+      }
+
+      if (direction && direction.includes("down")) {
+        const bend = Math.max(34, Math.abs(dy) * 0.42);
+        return `M ${start.x} ${start.y} C ${start.x} ${start.y + bend}, ${end.x} ${end.y - bend}, ${end.x} ${end.y}`;
+      }
+
+      if (direction && direction.includes("left")) {
+        const bend = Math.max(28, Math.abs(dx) * 0.46);
+        return `M ${start.x} ${start.y} C ${start.x - bend} ${start.y}, ${end.x + bend} ${end.y}, ${end.x} ${end.y}`;
+      }
+
+      if (direction && direction.includes("right")) {
+        const bend = Math.max(28, Math.abs(dx) * 0.46);
+        return `M ${start.x} ${start.y} C ${start.x + bend} ${start.y}, ${end.x - bend} ${end.y}, ${end.x} ${end.y}`;
+      }
+
+      if (Math.abs(dy) > Math.abs(dx)) {
+        const bend = Math.max(26, Math.abs(dy) * 0.38);
+        return `M ${start.x} ${start.y} C ${start.x} ${start.y + Math.sign(dy) * bend}, ${end.x} ${end.y - Math.sign(dy) * bend}, ${end.x} ${end.y}`;
+      }
+
+      const bend = Math.max(26, Math.abs(dx) * 0.4);
+      return `M ${start.x} ${start.y} C ${start.x + Math.sign(dx) * bend} ${start.y}, ${end.x - Math.sign(dx) * bend} ${end.y}, ${end.x} ${end.y}`;
+    }
+
+    function routeChildToModule(from, moduleRect, direction) {
+      const useRightSide = from.cx >= moduleRect.cx;
+      const sideX = useRightSide ? moduleRect.right - 16 : moduleRect.left + 16;
+      const titleX = moduleRect.cx + (useRightSide ? 46 : -46);
+      const titleY = moduleRect.top + 12;
+      const sign = useRightSide ? 1 : -1;
+      const start = useRightSide
+        ? { x: from.right, y: from.cy }
+        : { x: from.left, y: from.cy };
+      const bottomY = moduleRect.bottom - 16;
+
+      if (direction && direction.includes("up")) {
+        const controlY = Math.max(moduleRect.top + 38, Math.min(start.y - 22, moduleRect.bottom - 34));
+        return `M ${start.x} ${start.y} C ${sideX} ${start.y - 8}, ${sideX} ${controlY}, ${titleX} ${titleY}`;
+      }
+
+      return `M ${start.x} ${start.y} C ${sideX} ${start.y + 10}, ${sideX} ${bottomY}, ${titleX} ${titleY}`;
+    }
+
+    function box(element, graphBox) {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left - graphBox.left,
+        top: rect.top - graphBox.top,
+        right: rect.right - graphBox.left,
+        bottom: rect.bottom - graphBox.top,
+        width: rect.width,
+        height: rect.height,
+        cx: rect.left - graphBox.left + rect.width / 2,
+        cy: rect.top - graphBox.top + rect.height / 2
+      };
+    }
+
+    function anchor(rect, direction, isStart, other, element, otherElement) {
+      const horizontal = other.cx - rect.cx;
+      const vertical = other.cy - rect.cy;
+      const isModule = element && element.classList.contains("module");
+      const connectsOwnChild = isModule && otherElement && element.contains(otherElement);
+
+      if (direction && direction.includes("down")) {
+        if (isStart && connectsOwnChild) return moduleTitlePort(rect, other);
+        if (!isStart && isModule) return { x: containerPortX(rect, other), y: rect.top };
+        return isStart
+          ? { x: rect.cx, y: rect.bottom }
+          : { x: rect.cx, y: rect.top };
+      }
+      if (direction && direction.includes("up")) {
+        if (isStart && isModule) return { x: containerPortX(rect, other), y: rect.top };
+        if (!isStart && connectsOwnChild) return moduleTitlePort(rect, other);
+        return isStart
+          ? { x: rect.cx, y: rect.top }
+          : { x: rect.cx, y: rect.bottom };
+      }
+      if (direction && direction.includes("left")) {
+        return isStart
+          ? { x: rect.left, y: rect.cy }
+          : { x: rect.right, y: rect.cy };
+      }
+      if (direction && direction.includes("right")) {
+        return isStart
+          ? { x: rect.right, y: rect.cy }
+          : { x: rect.left, y: rect.cy };
+      }
+
+      if (Math.abs(vertical) >= Math.abs(horizontal)) {
+        return isStart === vertical > 0
+          ? { x: rect.cx, y: rect.bottom }
+          : { x: rect.cx, y: rect.top };
+      }
+
+      return isStart === horizontal > 0
+        ? { x: rect.right, y: rect.cy }
+        : { x: rect.left, y: rect.cy };
+    }
+
+    function containerPortX(rect, other) {
+      const margin = Math.min(44, rect.width * 0.24);
+      const min = rect.left + margin;
+      const max = rect.right - margin;
+      const clamped = Math.max(min, Math.min(max, other.cx));
+      const titleDeadZone = Math.min(42, rect.width * 0.18);
+
+      if (Math.abs(clamped - rect.cx) < titleDeadZone) {
+        return rect.cx + (other.cx >= rect.cx ? titleDeadZone : -titleDeadZone);
+      }
+
+      return clamped;
+    }
+
+    function moduleTitlePort(rect, other) {
+      return {
+        x: containerPortX(rect, other),
+        y: rect.top + 12
+      };
+    }
+
+    function drawLoop(nodeId, markerCache, defs, graphBox) {
+      const target = nodeIndex.get(nodeId);
+      if (!target) return;
+
+      const rect = box(target, graphBox);
+      const color = "#b07a38";
+      const markerId = getMarker(color, markerCache, defs);
+      const padX = 15;
+      const padY = 10;
+      const left = rect.left - padX;
+      const right = rect.right + padX;
+      const top = rect.top - padY;
+      const bottom = rect.bottom + padY;
+      const path = document.createElementNS(namespace, "path");
+      path.setAttribute("class", "loop-edge");
+      path.setAttribute(
+        "d",
+        `M ${rect.cx} ${top} C ${right} ${top}, ${right} ${bottom}, ${rect.cx} ${bottom} C ${left} ${bottom}, ${left} ${top}, ${rect.cx - 2} ${top}`
+      );
+      path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", "0.95");
+      path.setAttribute("marker-end", `url(#${markerId})`);
+      svgEl.appendChild(path);
+    }
+
+    loadGraphData().then((data) => {
+      renderOverview(data);
+      renderGraph(data);
+    });
+    window.addEventListener("resize", () => requestAnimationFrame(drawEdges));
+  </script>
+</body>
+</html>

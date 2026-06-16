@@ -1,0 +1,218 @@
+﻿window.FALLBACK_GRAPH_DATA = {
+  "meta": {
+    "title": "software-engineering-agent-demo",
+    "version": "1.1.0"
+  },
+  "layout": {
+    "type": "fixed-vertical-layers",
+    "layerCount": 5,
+    "moduleRowWrap": false,
+    "edgeRouting": "auto",
+    "theme": {
+      "defaultEdgeColor": "#5f676d",
+      "emphasisEdgeColor": "#57bd84",
+      "layerBorderColor": "#27336b",
+      "nodeBorderColor": "#1b1b1b"
+    }
+  },
+  "overview": {
+    "nodes": [
+      { "id": "overview.requirement_alignment", "label": "需求对齐" },
+      { "id": "overview.solution_design", "label": "方案设计" },
+      { "id": "overview.coding", "label": "编码实现" },
+      { "id": "overview.issue_convergence", "label": "问题收敛" }
+    ]
+  },
+  "layers": [
+    {
+      "id": "layer.top",
+      "label": "阶段输出件",
+      "order": 1,
+      "kind": "ellipse-row",
+      "frame": false,
+      "slots": 5,
+      "nodeDefaults": {
+        "shape": "ellipse",
+        "size": "large"
+      }
+    },
+    {
+      "id": "layer.inputs",
+      "label": "审核门禁",
+      "order": 2,
+      "kind": "rect-row",
+      "frame": true,
+      "slots": 5,
+      "nodeDefaults": {
+        "shape": "rect",
+        "size": "small"
+      }
+    },
+    {
+      "id": "layer.context",
+      "label": "规范资产\n（常驻会话）",
+      "order": 3,
+      "kind": "rect-row",
+      "frame": true,
+      "slots": 3,
+      "nodeDefaults": {
+        "shape": "rect",
+        "size": "medium"
+      }
+    },
+    {
+      "id": "layer.modules",
+      "label": "能力资产\n（阶段触发）",
+      "order": 4,
+      "kind": "module-row",
+      "frame": true,
+      "wrap": false,
+      "nodeDefaults": {
+        "shape": "text"
+      }
+    },
+    {
+      "id": "layer.outputs",
+      "label": "数据资产\n（按需查询）",
+      "order": 5,
+      "kind": "result-row",
+      "frame": true,
+      "slots": 8,
+      "nodeDefaults": {
+        "shape": "rect",
+        "size": "medium"
+      }
+    }
+  ],
+  "nodes": [
+    { "id": "top.ar", "label": "AR", "layer": "layer.top", "slot": 1 },
+    { "id": "top.requirement_spec", "label": "需求规格说明书", "layer": "layer.top", "slot": 2 },
+    { "id": "top.design_spec", "label": "软件实现设计说明书", "layer": "layer.top", "slot": 3 },
+    { "id": "top.initial_code", "label": "初始代码", "layer": "layer.top", "slot": 4 },
+    { "id": "top.mr", "label": "MR", "layer": "layer.top", "slot": 5 },
+
+    { "id": "gate.raw_input", "label": "原始输入", "layer": "layer.inputs", "slot": 1 },
+    { "id": "gate.review_req", "label": "人工审核修正", "layer": "layer.inputs", "slot": 2 },
+    { "id": "gate.review_design", "label": "人工审核修正", "layer": "layer.inputs", "slot": 3 },
+    { "id": "gate.review_code", "label": "人工审核修正", "layer": "layer.inputs", "slot": 4 },
+    { "id": "gate.manual_fallback", "label": "人工检视兜底", "layer": "layer.inputs", "slot": 5 },
+
+    { "id": "context.global_rule", "label": "全局规约", "layer": "layer.context", "slot": 1 },
+    { "id": "context.version_rule", "label": "版本规约", "layer": "layer.context", "slot": 2 },
+    { "id": "context.repo_rule", "label": "仓级规约", "layer": "layer.context", "slot": 3 },
+
+    { "id": "output.feature_code_map", "label": "功能代码映射库", "layer": "layer.outputs", "slot": 1 },
+    { "id": "output.ir_sr_ar", "label": "IR/SR/AR", "layer": "layer.outputs", "slot": 2 },
+    { "id": "output.feature_lib", "label": "功能库", "layer": "layer.outputs", "slot": 3 },
+    { "id": "output.arch_knowledge", "label": "架构知识库", "layer": "layer.outputs", "slot": 4 },
+    { "id": "output.code_graph", "label": "代码图谱", "layer": "layer.outputs", "slot": 5 },
+    { "id": "output.code_pattern", "label": "代码模式库", "layer": "layer.outputs", "slot": 6 },
+    { "id": "output.interface_vector", "label": "接口向量库", "layer": "layer.outputs", "slot": 7 },
+    { "id": "output.coding_standard", "label": "编码规范", "layer": "layer.outputs", "slot": 8 }
+  ],
+  "modules": [
+    {
+      "id": "module.understand",
+      "label": "理解",
+      "layer": "layer.modules",
+      "order": 1,
+      "grid": { "rows": 4, "cols": 3 },
+      "nodes": [
+        { "id": "understand.requirement_detail", "label": "获取需求详情", "row": 1, "col": 1 },
+        { "id": "understand.base_code", "label": "获取基座代码", "row": 1, "col": 3 },
+        { "id": "understand.code_understanding", "label": "代码理解", "row": 2, "col": 3 },
+        { "id": "understand.structured_breakdown", "label": "结构化拆解", "row": 3, "col": 2 }
+      ]
+    },
+    {
+      "id": "module.plan",
+      "label": "规划",
+      "layer": "layer.modules",
+      "order": 2,
+      "grid": { "rows": 4, "cols": 3 },
+      "nodes": [
+        { "id": "plan.solution_design", "label": "方案设计", "row": 1, "col": 1 },
+        { "id": "plan.impact_analysis", "label": "变更范围影响分析", "row": 3, "col": 1 },
+        { "id": "plan.task_breakdown", "label": "任务拆解", "row": 3, "col": 3 }
+      ]
+    },
+    {
+      "id": "module.execute",
+      "label": "执行",
+      "layer": "layer.modules",
+      "order": 3,
+      "grid": { "rows": 5, "cols": 3 },
+      "nodes": [
+        { "id": "execute.swarm", "label": "蜂群", "row": 1, "col": 2 },
+        { "id": "execute.code_gen", "label": "代码生成", "row": 2, "col": 1 },
+        { "id": "execute.interface_adapter", "label": "接口适配", "row": 4, "col": 1 },
+        { "id": "execute.clean_code", "label": "CleanCode", "row": 5, "col": 2 },
+        { "id": "execute.more", "label": "...", "row": 3, "col": 2 },
+        { "id": "execute.code_gen_2", "label": "代码生成2", "row": 2, "col": 3 },
+        { "id": "execute.interface_adapter_2", "label": "接口适配2", "row": 4, "col": 3 }
+      ]
+    },
+    {
+      "id": "module.verify",
+      "label": "验证",
+      "layer": "layer.modules",
+      "order": 4,
+      "grid": { "rows": 4, "cols": 3 },
+      "nodes": [
+        { "id": "verify.build", "label": "构建验证", "row": 1, "col": 1, "loop": true },
+        { "id": "verify.case", "label": "用例验证", "row": 1, "col": 3 },
+        { "id": "verify.submit_mr", "label": "提交为MR", "row": 3, "col": 2 },
+        { "id": "verify.gate", "label": "门禁验证", "row": 3, "col": 3 }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "e.stage-ar-understand", "from": "top.ar", "to": "module.understand", "color": "#5f676d", "direction": "down" },
+    { "id": "e.stage-understand-req", "from": "module.understand", "to": "top.requirement_spec", "color": "#5f676d", "direction": "up" },
+    { "id": "e.stage-req-plan", "from": "top.requirement_spec", "to": "module.plan", "color": "#5f676d", "direction": "down" },
+    { "id": "e.stage-plan-design", "from": "module.plan", "to": "top.design_spec", "color": "#5f676d", "direction": "up" },
+    { "id": "e.stage-design-execute", "from": "top.design_spec", "to": "module.execute", "color": "#5f676d", "direction": "down" },
+    { "id": "e.stage-execute-code", "from": "module.execute", "to": "top.initial_code", "color": "#5f676d", "direction": "up" },
+    { "id": "e.stage-code-verify", "from": "top.initial_code", "to": "module.verify", "color": "#5f676d", "direction": "down" },
+    { "id": "e.stage-verify-mr", "from": "module.verify", "to": "top.mr", "color": "#5f676d", "direction": "up" },
+
+    { "id": "e.understand-module-requirement", "from": "module.understand", "to": "understand.requirement_detail", "color": "#5f676d", "direction": "down" },
+    { "id": "e.understand-requirement-base", "from": "understand.requirement_detail", "to": "understand.base_code", "color": "#5f676d", "direction": "right" },
+    { "id": "e.understand-base-code", "from": "understand.base_code", "to": "understand.code_understanding", "color": "#5f676d", "direction": "down" },
+    { "id": "e.understand-code-breakdown", "from": "understand.code_understanding", "to": "understand.structured_breakdown", "color": "#5f676d", "direction": "down-left" },
+    { "id": "e.understand-breakdown-module", "from": "understand.structured_breakdown", "to": "module.understand", "color": "#5f676d", "direction": "up" },
+    { "id": "e.understand-requirement-breakdown", "from": "understand.requirement_detail", "to": "understand.structured_breakdown", "color": "#5f676d", "direction": "down" },
+
+    { "id": "e.plan-module-solution", "from": "module.plan", "to": "plan.solution_design", "color": "#5f676d", "direction": "down" },
+    { "id": "e.plan-solution-impact", "from": "plan.solution_design", "to": "plan.impact_analysis", "color": "#5f676d", "direction": "down" },
+    { "id": "e.plan-impact-task", "from": "plan.impact_analysis", "to": "plan.task_breakdown", "color": "#5f676d", "direction": "right" },
+    { "id": "e.plan-task-module", "from": "plan.task_breakdown", "to": "module.plan", "color": "#5f676d", "direction": "up" },
+
+    { "id": "e.execute-module-swarm", "from": "module.execute", "to": "execute.swarm", "color": "#5f676d", "direction": "down" },
+    { "id": "e.execute-swarm-code", "from": "execute.swarm", "to": "execute.code_gen", "color": "#5f676d", "direction": "down-left" },
+    { "id": "e.execute-code-adapter", "from": "execute.code_gen", "to": "execute.interface_adapter", "color": "#5f676d", "direction": "down" },
+    { "id": "e.execute-adapter-clean", "from": "execute.interface_adapter", "to": "execute.clean_code", "color": "#5f676d", "direction": "down-right" },
+    { "id": "e.execute-clean-module", "from": "execute.clean_code", "to": "module.execute", "color": "#5f676d", "direction": "up" },
+    { "id": "e.execute-swarm-more", "from": "execute.swarm", "to": "execute.more", "color": "#5f676d", "direction": "down" },
+    { "id": "e.execute-swarm-code2", "from": "execute.swarm", "to": "execute.code_gen_2", "color": "#5f676d", "direction": "down-right" },
+    { "id": "e.execute-code2-adapter2", "from": "execute.code_gen_2", "to": "execute.interface_adapter_2", "color": "#5f676d", "direction": "down" },
+    { "id": "e.execute-adapter2-clean", "from": "execute.interface_adapter_2", "to": "execute.clean_code", "color": "#5f676d", "direction": "down-left" },
+
+    { "id": "e.verify-module-build", "from": "module.verify", "to": "verify.build", "color": "#5f676d", "direction": "down" },
+    { "id": "e.verify-build-case", "from": "verify.build", "to": "verify.case", "color": "#5f676d", "direction": "right" },
+    { "id": "e.verify-case-mr", "from": "verify.case", "to": "verify.submit_mr", "color": "#5f676d", "direction": "down-left" },
+    { "id": "e.verify-mr-gate", "from": "verify.submit_mr", "to": "verify.gate", "color": "#5f676d", "direction": "right" },
+
+    { "id": "e.asset-base-map", "from": "understand.base_code", "to": "output.feature_code_map", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-base-feature", "from": "understand.base_code", "to": "output.feature_lib", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-req-ir", "from": "understand.requirement_detail", "to": "output.ir_sr_ar", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-solution-arch", "from": "plan.solution_design", "to": "output.arch_knowledge", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-impact-graph", "from": "plan.impact_analysis", "to": "output.code_graph", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-code-pattern", "from": "execute.code_gen", "to": "output.code_pattern", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-adapter-graph", "from": "execute.interface_adapter", "to": "output.code_graph", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-adapter-vector", "from": "execute.interface_adapter", "to": "output.interface_vector", "color": "#57bd84", "direction": "down" },
+    { "id": "e.asset-execute-standard", "from": "module.execute", "to": "output.coding_standard", "color": "#57bd84", "direction": "down" }
+  ]
+}
+
+;
