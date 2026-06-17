@@ -1,7 +1,7 @@
-﻿{
+﻿window.MOCK_GRAPH_DATA = {
     "meta":  {
-                 "title":  "software-engineering-agent-demo",
-                 "version":  "1.1.0"
+                 "title":  "software-engineering-agent-mock-demo",
+                 "version":  "1.1.0-mock"
              },
     "layout":  {
                    "type":  "fixed-vertical-layers",
@@ -182,50 +182,50 @@
                       "slot":  3
                   },
                   {
-                      "id":  "output.feature_code_map",
-                      "label":  "功能代码映射库",
+                      "id":  "output.requirement_profile",
+                      "label":  "需求画像库",
                       "layer":  "layer.outputs",
                       "slot":  1
                   },
                   {
-                      "id":  "output.ir_sr_ar",
-                      "label":  "IR/SR/AR",
+                      "id":  "output.solution_template",
+                      "label":  "方案模板库",
                       "layer":  "layer.outputs",
                       "slot":  2
                   },
                   {
-                      "id":  "output.feature_lib",
-                      "label":  "功能库",
+                      "id":  "output.component_asset",
+                      "label":  "组件资产库",
                       "layer":  "layer.outputs",
                       "slot":  3
                   },
                   {
-                      "id":  "output.arch_knowledge",
-                      "label":  "架构知识库",
+                      "id":  "output.test_case",
+                      "label":  "测试用例库",
                       "layer":  "layer.outputs",
                       "slot":  4
                   },
                   {
-                      "id":  "output.code_graph",
-                      "label":  "代码图谱",
+                      "id":  "output.quality_rule",
+                      "label":  "质量规则库",
                       "layer":  "layer.outputs",
                       "slot":  5
                   },
                   {
-                      "id":  "output.code_pattern",
-                      "label":  "代码模式库",
+                      "id":  "output.defect_pattern",
+                      "label":  "缺陷模式库",
                       "layer":  "layer.outputs",
                       "slot":  6
                   },
                   {
-                      "id":  "output.interface_vector",
-                      "label":  "接口向量库",
+                      "id":  "output.interface_contract",
+                      "label":  "接口契约库",
                       "layer":  "layer.outputs",
                       "slot":  7
                   },
                   {
-                      "id":  "output.coding_standard",
-                      "label":  "编码规范",
+                      "id":  "output.release_knowledge",
+                      "label":  "发布知识库",
                       "layer":  "layer.outputs",
                       "slot":  8
                   }
@@ -237,32 +237,39 @@
                         "layer":  "layer.modules",
                         "order":  1,
                         "grid":  {
-                                     "rows":  4,
+                                     "rows":  5,
                                      "cols":  3
                                  },
                         "nodes":  [
                                       {
-                                          "id":  "understand.requirement_detail",
-                                          "label":  "获取需求详情",
+                                          "id":  "understand.requirement_cluster",
+                                          "label":  "需求聚类",
                                           "row":  1,
                                           "col":  1
                                       },
                                       {
-                                          "id":  "understand.base_code",
-                                          "label":  "获取基座代码",
+                                          "id":  "understand.scene_match",
+                                          "label":  "场景匹配",
                                           "row":  1,
                                           "col":  3
                                       },
                                       {
-                                          "id":  "understand.code_understanding",
-                                          "label":  "代码理解",
-                                          "row":  2,
+                                          "id":  "understand.constraint_check",
+                                          "label":  "约束校验",
+                                          "row":  3,
+                                          "col":  1,
+                                          "loop":  true
+                                      },
+                                      {
+                                          "id":  "understand.knowledge_gap",
+                                          "label":  "知识缺口",
+                                          "row":  3,
                                           "col":  3
                                       },
                                       {
-                                          "id":  "understand.structured_breakdown",
-                                          "label":  "结构化拆解",
-                                          "row":  3,
+                                          "id":  "understand.intent_summary",
+                                          "label":  "意图摘要",
+                                          "row":  5,
                                           "col":  2
                                       }
                                   ]
@@ -273,26 +280,38 @@
                         "layer":  "layer.modules",
                         "order":  2,
                         "grid":  {
-                                     "rows":  4,
+                                     "rows":  5,
                                      "cols":  3
                                  },
                         "nodes":  [
                                       {
-                                          "id":  "plan.solution_design",
-                                          "label":  "方案设计",
+                                          "id":  "plan.option_compare",
+                                          "label":  "方案比选",
                                           "row":  1,
+                                          "col":  2
+                                      },
+                                      {
+                                          "id":  "plan.cost_estimate",
+                                          "label":  "成本评估",
+                                          "row":  2,
                                           "col":  1
                                       },
                                       {
-                                          "id":  "plan.impact_analysis",
-                                          "label":  "变更范围影响分析",
-                                          "row":  3,
-                                          "col":  1
+                                          "id":  "plan.risk_budget",
+                                          "label":  "风险预算",
+                                          "row":  2,
+                                          "col":  3
                                       },
                                       {
-                                          "id":  "plan.task_breakdown",
-                                          "label":  "任务拆解",
-                                          "row":  3,
+                                          "id":  "plan.release_slice",
+                                          "label":  "发布切片",
+                                          "row":  4,
+                                          "col":  2
+                                      },
+                                      {
+                                          "id":  "plan.review_pack",
+                                          "label":  "评审包",
+                                          "row":  5,
                                           "col":  3
                                       }
                                   ]
@@ -308,45 +327,39 @@
                                  },
                         "nodes":  [
                                       {
-                                          "id":  "execute.swarm",
-                                          "label":  "蜂群",
+                                          "id":  "execute.work_dispatch",
+                                          "label":  "任务派发",
                                           "row":  1,
                                           "col":  2
                                       },
                                       {
-                                          "id":  "execute.code_gen",
-                                          "label":  "代码生成",
+                                          "id":  "execute.patch_gen",
+                                          "label":  "补丁生成",
                                           "row":  2,
                                           "col":  1
                                       },
                                       {
-                                          "id":  "execute.interface_adapter",
-                                          "label":  "接口适配",
-                                          "row":  4,
-                                          "col":  1
-                                      },
-                                      {
-                                          "id":  "execute.clean_code",
-                                          "label":  "CleanCode",
-                                          "row":  5,
-                                          "col":  2
-                                      },
-                                      {
-                                          "id":  "execute.more",
-                                          "label":  "...",
-                                          "row":  3,
-                                          "col":  2
-                                      },
-                                      {
-                                          "id":  "execute.code_gen_2",
-                                          "label":  "代码生成2",
+                                          "id":  "execute.test_stub",
+                                          "label":  "桩例生成",
                                           "row":  2,
                                           "col":  3
                                       },
                                       {
-                                          "id":  "execute.interface_adapter_2",
-                                          "label":  "接口适配2",
+                                          "id":  "execute.merge_review",
+                                          "label":  "合并审查",
                                           "row":  4,
+                                          "col":  2
+                                      },
+                                      {
+                                          "id":  "execute.refactor_note",
+                                          "label":  "重构备注",
+                                          "row":  5,
+                                          "col":  1
+                                      },
+                                      {
+                                          "id":  "execute.sync_marker",
+                                          "label":  "同步标记",
+                                          "row":  5,
                                           "col":  3
                                       }
                                   ]
@@ -357,260 +370,322 @@
                         "layer":  "layer.modules",
                         "order":  4,
                         "grid":  {
-                                     "rows":  4,
+                                     "rows":  5,
                                      "cols":  3
                                  },
                         "nodes":  [
                                       {
-                                          "id":  "verify.build",
-                                          "label":  "构建验证",
+                                          "id":  "verify.smoke_check",
+                                          "label":  "冒烟检查",
                                           "row":  1,
+                                          "col":  1
+                                      },
+                                      {
+                                          "id":  "verify.defect_bucket",
+                                          "label":  "缺陷归桶",
+                                          "row":  2,
+                                          "col":  2
+                                      },
+                                      {
+                                          "id":  "verify.rerun",
+                                          "label":  "重跑验证",
+                                          "row":  3,
                                           "col":  1,
                                           "loop":  true
                                       },
                                       {
-                                          "id":  "verify.case",
-                                          "label":  "用例验证",
-                                          "row":  1,
+                                          "id":  "verify.acceptance",
+                                          "label":  "验收结论",
+                                          "row":  4,
                                           "col":  3
                                       },
                                       {
-                                          "id":  "verify.submit_mr",
-                                          "label":  "提交为MR",
-                                          "row":  3,
+                                          "id":  "verify.audit_record",
+                                          "label":  "审计记录",
+                                          "row":  5,
                                           "col":  2
-                                      },
-                                      {
-                                          "id":  "verify.gate",
-                                          "label":  "门禁验证",
-                                          "row":  3,
-                                          "col":  3
                                       }
                                   ]
                     }
                 ],
     "edges":  [
                   {
-                      "id":  "e.understand-module-requirement",
+                      "id":  "e.mock-understand-module-cluster",
                       "from":  "module.understand",
-                      "to":  "understand.requirement_detail",
+                      "to":  "understand.requirement_cluster",
                       "color":  "#5f676d",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.understand-requirement-base",
-                      "from":  "understand.requirement_detail",
-                      "to":  "understand.base_code",
-                      "color":  "#5f676d",
-                      "direction":  "right"
-                  },
-                  {
-                      "id":  "e.understand-base-code",
-                      "from":  "understand.base_code",
-                      "to":  "understand.code_understanding",
+                      "id":  "e.mock-understand-module-scene",
+                      "from":  "module.understand",
+                      "to":  "understand.scene_match",
                       "color":  "#5f676d",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.understand-code-breakdown",
-                      "from":  "understand.code_understanding",
-                      "to":  "understand.structured_breakdown",
+                      "id":  "e.mock-understand-cluster-constraint",
+                      "from":  "understand.requirement_cluster",
+                      "to":  "understand.constraint_check",
+                      "color":  "#5f676d",
+                      "direction":  "down"
+                  },
+                  {
+                      "id":  "e.mock-understand-scene-gap",
+                      "from":  "understand.scene_match",
+                      "to":  "understand.knowledge_gap",
+                      "color":  "#5f676d",
+                      "direction":  "down"
+                  },
+                  {
+                      "id":  "e.mock-understand-constraint-summary",
+                      "from":  "understand.constraint_check",
+                      "to":  "understand.intent_summary",
+                      "color":  "#5f676d",
+                      "direction":  "down-right"
+                  },
+                  {
+                      "id":  "e.mock-understand-gap-summary",
+                      "from":  "understand.knowledge_gap",
+                      "to":  "understand.intent_summary",
                       "color":  "#5f676d",
                       "direction":  "down-left"
                   },
                   {
-                      "id":  "e.understand-breakdown-module",
-                      "from":  "understand.structured_breakdown",
+                      "id":  "e.mock-understand-summary-module",
+                      "from":  "understand.intent_summary",
                       "to":  "module.understand",
                       "color":  "#5f676d",
                       "direction":  "up"
                   },
                   {
-                      "id":  "e.understand-requirement-breakdown",
-                      "from":  "understand.requirement_detail",
-                      "to":  "understand.structured_breakdown",
-                      "color":  "#5f676d",
-                      "direction":  "down"
-                  },
-                  {
-                      "id":  "e.plan-module-solution",
+                      "id":  "e.mock-plan-module-options",
                       "from":  "module.plan",
-                      "to":  "plan.solution_design",
+                      "to":  "plan.option_compare",
                       "color":  "#5f676d",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.plan-solution-impact",
-                      "from":  "plan.solution_design",
-                      "to":  "plan.impact_analysis",
+                      "id":  "e.mock-plan-options-cost",
+                      "from":  "plan.option_compare",
+                      "to":  "plan.cost_estimate",
                       "color":  "#5f676d",
-                      "direction":  "down"
+                      "direction":  "down-left"
                   },
                   {
-                      "id":  "e.plan-impact-task",
-                      "from":  "plan.impact_analysis",
-                      "to":  "plan.task_breakdown",
+                      "id":  "e.mock-plan-options-risk",
+                      "from":  "plan.option_compare",
+                      "to":  "plan.risk_budget",
                       "color":  "#5f676d",
-                      "direction":  "right"
+                      "direction":  "down-right"
                   },
                   {
-                      "id":  "e.plan-task-module",
-                      "from":  "plan.task_breakdown",
+                      "id":  "e.mock-plan-cost-slice",
+                      "from":  "plan.cost_estimate",
+                      "to":  "plan.release_slice",
+                      "color":  "#5f676d",
+                      "direction":  "down-right"
+                  },
+                  {
+                      "id":  "e.mock-plan-risk-slice",
+                      "from":  "plan.risk_budget",
+                      "to":  "plan.release_slice",
+                      "color":  "#5f676d",
+                      "direction":  "down-left"
+                  },
+                  {
+                      "id":  "e.mock-plan-slice-pack",
+                      "from":  "plan.release_slice",
+                      "to":  "plan.review_pack",
+                      "color":  "#5f676d",
+                      "direction":  "down-right"
+                  },
+                  {
+                      "id":  "e.mock-plan-pack-module",
+                      "from":  "plan.review_pack",
                       "to":  "module.plan",
                       "color":  "#5f676d",
                       "direction":  "up"
                   },
                   {
-                      "id":  "e.execute-module-swarm",
+                      "id":  "e.mock-execute-module-dispatch",
                       "from":  "module.execute",
-                      "to":  "execute.swarm",
+                      "to":  "execute.work_dispatch",
                       "color":  "#5f676d",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.execute-swarm-code",
-                      "from":  "execute.swarm",
-                      "to":  "execute.code_gen",
+                      "id":  "e.mock-execute-dispatch-patch",
+                      "from":  "execute.work_dispatch",
+                      "to":  "execute.patch_gen",
                       "color":  "#5f676d",
                       "direction":  "down-left"
                   },
                   {
-                      "id":  "e.execute-code-adapter",
-                      "from":  "execute.code_gen",
-                      "to":  "execute.interface_adapter",
-                      "color":  "#5f676d",
-                      "direction":  "down"
-                  },
-                  {
-                      "id":  "e.execute-adapter-clean",
-                      "from":  "execute.interface_adapter",
-                      "to":  "execute.clean_code",
+                      "id":  "e.mock-execute-dispatch-stub",
+                      "from":  "execute.work_dispatch",
+                      "to":  "execute.test_stub",
                       "color":  "#5f676d",
                       "direction":  "down-right"
                   },
                   {
-                      "id":  "e.execute-clean-module",
-                      "from":  "execute.clean_code",
+                      "id":  "e.mock-execute-patch-review",
+                      "from":  "execute.patch_gen",
+                      "to":  "execute.merge_review",
+                      "color":  "#5f676d",
+                      "direction":  "down-right"
+                  },
+                  {
+                      "id":  "e.mock-execute-stub-review",
+                      "from":  "execute.test_stub",
+                      "to":  "execute.merge_review",
+                      "color":  "#5f676d",
+                      "direction":  "down-left"
+                  },
+                  {
+                      "id":  "e.mock-execute-review-note",
+                      "from":  "execute.merge_review",
+                      "to":  "execute.refactor_note",
+                      "color":  "#5f676d",
+                      "direction":  "down-left"
+                  },
+                  {
+                      "id":  "e.mock-execute-review-sync",
+                      "from":  "execute.merge_review",
+                      "to":  "execute.sync_marker",
+                      "color":  "#5f676d",
+                      "direction":  "down-right"
+                  },
+                  {
+                      "id":  "e.mock-execute-note-module",
+                      "from":  "execute.refactor_note",
                       "to":  "module.execute",
                       "color":  "#5f676d",
                       "direction":  "up"
                   },
                   {
-                      "id":  "e.execute-swarm-more",
-                      "from":  "execute.swarm",
-                      "to":  "execute.more",
+                      "id":  "e.mock-execute-sync-module",
+                      "from":  "execute.sync_marker",
+                      "to":  "module.execute",
+                      "color":  "#5f676d",
+                      "direction":  "up"
+                  },
+                  {
+                      "id":  "e.mock-verify-module-smoke",
+                      "from":  "module.verify",
+                      "to":  "verify.smoke_check",
                       "color":  "#5f676d",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.execute-swarm-code2",
-                      "from":  "execute.swarm",
-                      "to":  "execute.code_gen_2",
+                      "id":  "e.mock-verify-smoke-bucket",
+                      "from":  "verify.smoke_check",
+                      "to":  "verify.defect_bucket",
                       "color":  "#5f676d",
                       "direction":  "down-right"
                   },
                   {
-                      "id":  "e.execute-code2-adapter2",
-                      "from":  "execute.code_gen_2",
-                      "to":  "execute.interface_adapter_2",
-                      "color":  "#5f676d",
-                      "direction":  "down"
-                  },
-                  {
-                      "id":  "e.execute-adapter2-clean",
-                      "from":  "execute.interface_adapter_2",
-                      "to":  "execute.clean_code",
+                      "id":  "e.mock-verify-bucket-rerun",
+                      "from":  "verify.defect_bucket",
+                      "to":  "verify.rerun",
                       "color":  "#5f676d",
                       "direction":  "down-left"
                   },
                   {
-                      "id":  "e.verify-module-build",
-                      "from":  "module.verify",
-                      "to":  "verify.build",
+                      "id":  "e.mock-verify-bucket-accept",
+                      "from":  "verify.defect_bucket",
+                      "to":  "verify.acceptance",
                       "color":  "#5f676d",
-                      "direction":  "down"
+                      "direction":  "down-right"
                   },
                   {
-                      "id":  "e.verify-build-case",
-                      "from":  "verify.build",
-                      "to":  "verify.case",
+                      "id":  "e.mock-verify-rerun-accept",
+                      "from":  "verify.rerun",
+                      "to":  "verify.acceptance",
                       "color":  "#5f676d",
                       "direction":  "right"
                   },
                   {
-                      "id":  "e.verify-case-mr",
-                      "from":  "verify.case",
-                      "to":  "verify.submit_mr",
+                      "id":  "e.mock-verify-accept-audit",
+                      "from":  "verify.acceptance",
+                      "to":  "verify.audit_record",
                       "color":  "#5f676d",
                       "direction":  "down-left"
                   },
                   {
-                      "id":  "e.verify-mr-gate",
-                      "from":  "verify.submit_mr",
-                      "to":  "verify.gate",
-                      "color":  "#5f676d",
-                      "direction":  "right"
-                  },
-                  {
-                      "id":  "e.asset-base-map",
-                      "from":  "understand.base_code",
-                      "to":  "output.feature_code_map",
+                      "id":  "e.asset-mock-cluster-profile",
+                      "from":  "understand.requirement_cluster",
+                      "to":  "output.requirement_profile",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-base-feature",
-                      "from":  "understand.base_code",
-                      "to":  "output.feature_lib",
+                      "id":  "e.asset-mock-gap-template",
+                      "from":  "understand.knowledge_gap",
+                      "to":  "output.solution_template",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-req-ir",
-                      "from":  "understand.requirement_detail",
-                      "to":  "output.ir_sr_ar",
+                      "id":  "e.asset-mock-summary-release",
+                      "from":  "understand.intent_summary",
+                      "to":  "output.release_knowledge",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-solution-arch",
-                      "from":  "plan.solution_design",
-                      "to":  "output.arch_knowledge",
+                      "id":  "e.asset-mock-options-template",
+                      "from":  "plan.option_compare",
+                      "to":  "output.solution_template",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-impact-graph",
-                      "from":  "plan.impact_analysis",
-                      "to":  "output.code_graph",
+                      "id":  "e.asset-mock-slice-component",
+                      "from":  "plan.release_slice",
+                      "to":  "output.component_asset",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-code-pattern",
-                      "from":  "execute.code_gen",
-                      "to":  "output.code_pattern",
+                      "id":  "e.asset-mock-patch-component",
+                      "from":  "execute.patch_gen",
+                      "to":  "output.component_asset",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-adapter-graph",
-                      "from":  "execute.interface_adapter",
-                      "to":  "output.code_graph",
+                      "id":  "e.asset-mock-stub-case",
+                      "from":  "execute.test_stub",
+                      "to":  "output.test_case",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-adapter-vector",
-                      "from":  "execute.interface_adapter",
-                      "to":  "output.interface_vector",
+                      "id":  "e.asset-mock-sync-contract",
+                      "from":  "execute.sync_marker",
+                      "to":  "output.interface_contract",
                       "color":  "#57bd84",
                       "direction":  "down"
                   },
                   {
-                      "id":  "e.asset-execute-standard",
-                      "from":  "module.execute",
-                      "to":  "output.coding_standard",
+                      "id":  "e.asset-mock-rerun-defect",
+                      "from":  "verify.rerun",
+                      "to":  "output.defect_pattern",
+                      "color":  "#57bd84",
+                      "direction":  "down"
+                  },
+                  {
+                      "id":  "e.asset-mock-accept-quality",
+                      "from":  "verify.acceptance",
+                      "to":  "output.quality_rule",
+                      "color":  "#57bd84",
+                      "direction":  "down"
+                  },
+                  {
+                      "id":  "e.asset-mock-audit-release",
+                      "from":  "verify.audit_record",
+                      "to":  "output.release_knowledge",
                       "color":  "#57bd84",
                       "direction":  "down"
                   }
@@ -641,4 +716,4 @@
                                "to":  "top.mr"
                            }
                        ]
-}
+};

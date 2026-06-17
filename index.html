@@ -32,16 +32,58 @@
     }
 
     .stage {
-      width: min(1380px, calc(100vw - 24px));
-      min-width: 1180px;
-      margin: 16px auto;
+      width: min(1480px, calc(100vw - 20px));
+      min-width: 1240px;
+      margin: 8px auto 4px;
       padding: 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      margin: 0 4px 8px;
+      padding: 0 14px;
+      border: 1px solid rgba(39, 51, 107, 0.5);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 1px 0 rgba(20, 20, 20, 0.05);
+    }
+
+    .toolbar-title {
+      color: #1f2a5c;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .version-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .version-control select {
+      min-width: 148px;
+      height: 30px;
+      padding: 0 30px 0 10px;
+      color: var(--ink);
+      border: 1px solid rgba(20, 20, 20, 0.55);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.96);
+      font: inherit;
+      cursor: pointer;
     }
 
     .overview-flow {
       display: grid;
-      grid-template-columns: 132px minmax(0, 1fr);
-      margin: 0 6px 18px;
+      grid-template-columns: 128px minmax(0, 1fr);
+      margin: 0 4px 9px;
     }
 
     .overview-inner {
@@ -49,8 +91,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      min-height: 60px;
+      gap: 10px;
+      min-height: 50px;
       border: 1px solid rgba(39, 51, 107, 0.56);
       border-radius: 7px;
       background: rgba(255, 255, 255, 0.62);
@@ -60,12 +102,12 @@
       display: inline-grid;
       place-items: center;
       min-width: 132px;
-      height: 34px;
+      height: 35px;
       padding: 0 18px;
       border: 1px solid rgba(20, 20, 20, 0.72);
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.92);
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 600;
       white-space: nowrap;
     }
@@ -100,11 +142,11 @@
     .graph {
       position: relative;
       display: grid;
-      grid-template-columns: 132px minmax(0, 1fr);
-      grid-template-rows: 82px 74px 74px 320px 112px;
-      gap: 22px 12px;
-      min-height: 728px;
-      padding: 0 6px;
+      grid-template-columns: 128px minmax(0, 1fr);
+      grid-template-rows: 104px 62px 62px 304px 80px;
+      gap: 10px 10px;
+      min-height: 652px;
+      padding: 0 4px;
     }
 
     .edge-layer {
@@ -132,6 +174,27 @@
       box-shadow: none;
     }
 
+    .layer[data-id="layer.modules"],
+    .layer-label[data-layer-id="layer.modules"] {
+      margin-top: 12px;
+    }
+
+    .layer-frame-title {
+      position: absolute;
+      top: -17px;
+      left: 50%;
+      z-index: 36;
+      transform: translateX(-50%);
+      padding: 0 14px;
+      color: #000;
+      background: var(--paper);
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
     .layer-label {
       position: relative;
       z-index: 40;
@@ -140,7 +203,7 @@
       justify-items: end;
       padding-right: 10px;
       color: #1f2a5c;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
       line-height: 1.25;
       text-align: right;
@@ -154,18 +217,42 @@
       justify-items: center;
       width: 100%;
       height: 100%;
-      padding: 12px 18px;
-      column-gap: 18px;
+      padding: 7px 12px;
+      column-gap: 10px;
     }
 
     .modules-row {
       display: grid;
       grid-template-columns: repeat(var(--module-count), minmax(0, 1fr));
-      gap: 20px;
+      gap: 10px;
       width: 100%;
       height: 100%;
-      padding: 34px 34px 20px;
+      padding: 28px 16px 14px;
       align-items: stretch;
+    }
+
+    .modules-row.has-sequence {
+      column-gap: 6px;
+    }
+
+    .module-sequence-arrow {
+      position: relative;
+      z-index: 34;
+      display: grid;
+      place-items: center;
+      align-self: center;
+      justify-self: center;
+      width: 38px;
+      height: 42px;
+      color: rgba(31, 42, 92, 0.72);
+      pointer-events: none;
+    }
+
+    .module-sequence-arrow svg {
+      width: 38px;
+      height: 30px;
+      fill: currentColor;
+      filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.75));
     }
 
     .node {
@@ -176,7 +263,7 @@
       color: var(--ink);
       border: 1px solid var(--ink);
       background: rgba(255, 255, 255, 0.92);
-      font-size: 13px;
+      font-size: 15.5px;
       line-height: 1.15;
       letter-spacing: 0;
       white-space: pre-line;
@@ -185,22 +272,85 @@
     }
 
     .node.ellipse {
-      width: 166px;
-      height: 54px;
+      width: 176px;
+      height: 56px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.9);
       padding: 0 14px;
     }
 
+    .node.stage-output {
+      display: grid;
+      grid-template-rows: minmax(18px, auto) 68px;
+      row-gap: 1px;
+      width: 188px;
+      height: 92px;
+      padding: 2px 8px 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .stage-output-label {
+      display: grid;
+      align-items: center;
+      min-width: 0;
+      color: #1b234f;
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.12;
+      white-space: normal;
+    }
+
+    .stage-output-icon {
+      display: grid;
+      place-items: center;
+      justify-self: center;
+      width: 76px;
+      height: 66px;
+      color: #315c8f;
+    }
+
+    .stage-output-icon svg {
+      width: 60px;
+      height: 60px;
+      stroke: currentColor;
+      stroke-width: 1.55;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .node.stage-output[data-icon="radar"] .stage-output-icon {
+      color: #2f6f91;
+    }
+
+    .node.stage-output[data-icon="document"] .stage-output-icon {
+      color: #6a5a9e;
+    }
+
+    .node.stage-output[data-icon="blueprint"] .stage-output-icon {
+      color: #1f6c9d;
+    }
+
+    .node.stage-output[data-icon="code"] .stage-output-icon {
+      color: #9a6338;
+    }
+
+    .node.stage-output[data-icon="merge"] .stage-output-icon {
+      color: #33715c;
+    }
+
     .node.rect.small {
-      width: 142px;
-      height: 30px;
+      width: 148px;
+      height: 32px;
       border-radius: 7px;
     }
 
     .node.rect.medium {
-      width: 120px;
-      height: 38px;
+      width: 126px;
+      height: 40px;
       border-radius: 7px;
       padding: 0 8px;
     }
@@ -221,7 +371,7 @@
       transform: translateX(-50%);
       padding: 0 12px;
       background: var(--paper);
-      font-size: 17px;
+      font-size: 19px;
       line-height: 1;
       font-weight: 700;
       color: #000;
@@ -232,11 +382,11 @@
     .module-grid {
       display: grid;
       grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-      grid-template-rows: repeat(var(--rows), minmax(34px, 1fr));
+      grid-template-rows: repeat(var(--rows), minmax(32px, 1fr));
       align-items: center;
       justify-items: center;
       height: 100%;
-      padding: 26px 22px 18px;
+      padding: 24px 14px 12px;
     }
 
     .node.text {
@@ -245,8 +395,8 @@
       min-width: 34px;
       min-height: 22px;
       padding: 2px 4px;
-      max-width: min(78px, 100%);
-      font-size: 13px;
+      max-width: min(86px, 100%);
+      font-size: 15px;
       font-weight: 500;
       z-index: 30;
       overflow-wrap: anywhere;
@@ -296,11 +446,22 @@
         padding-left: 30px;
         padding-right: 30px;
       }
+
+      .modules-row.has-sequence {
+        column-gap: 6px;
+      }
     }
   </style>
 </head>
 <body>
   <main class="stage">
+    <section class="toolbar" aria-label="graph toolbar">
+      <div class="toolbar-title">研发流程图</div>
+      <label class="version-control" for="version-select">
+        <span>版本</span>
+        <select id="version-select"></select>
+      </label>
+    </section>
     <section id="overview-flow" class="overview-flow" aria-label="top direction flow"></section>
     <section id="graph" class="graph" aria-label="fixed five layer directed graph">
       <svg id="edge-layer" class="edge-layer" aria-hidden="true"></svg>
@@ -308,6 +469,7 @@
   </main>
 
   <script src="graph-data.fallback.js" charset="utf-8"></script>
+  <script src="graph-data.mock.fallback.js" charset="utf-8"></script>
   <script id="fallback-graph-data" type="application/json">
 {
   "meta": {
@@ -428,19 +590,73 @@
     const overviewEl = document.querySelector("#overview-flow");
     const graphEl = document.querySelector("#graph");
     const svgEl = document.querySelector("#edge-layer");
+    const versionSelect = document.querySelector("#version-select");
     const nodeIndex = new Map();
     const namespace = "http://www.w3.org/2000/svg";
+    const graphVariants = [
+      {
+        id: "real",
+        label: "真实数据 Demo",
+        file: "graph-data.json",
+        fallbackKey: "FALLBACK_GRAPH_DATA",
+        inlineFallback: true
+      },
+      {
+        id: "mock",
+        label: "Mock 数据 Demo",
+        file: "graph-data.mock.json",
+        fallbackKey: "MOCK_GRAPH_DATA"
+      }
+    ];
+    const graphCache = new Map();
     let graphData;
 
-    async function loadGraphData() {
+    async function loadGraphData(variant) {
+      if (graphCache.has(variant.id)) return graphCache.get(variant.id);
+
       try {
-        const response = await fetch("graph-data.json", { cache: "no-store" });
-        if (!response.ok) throw new Error("graph-data.json not available");
-        return response.json();
+        const response = await fetch(variant.file, { cache: "no-store" });
+        if (!response.ok) throw new Error(`${variant.file} not available`);
+        const data = await response.json();
+        graphCache.set(variant.id, data);
+        return data;
       } catch {
-        if (window.FALLBACK_GRAPH_DATA) return window.FALLBACK_GRAPH_DATA;
-        return JSON.parse(document.querySelector("#fallback-graph-data").textContent);
+        const fallback = window[variant.fallbackKey];
+        if (fallback) {
+          graphCache.set(variant.id, fallback);
+          return fallback;
+        }
+
+        if (variant.inlineFallback) {
+          const data = JSON.parse(document.querySelector("#fallback-graph-data").textContent);
+          graphCache.set(variant.id, data);
+          return data;
+        }
+
+        throw new Error(`${variant.label} 数据加载失败`);
       }
+    }
+
+    function renderToolbar() {
+      versionSelect.replaceChildren();
+      for (const variant of graphVariants) {
+        versionSelect.appendChild(el("option", "", {
+          value: variant.id,
+          text: variant.label
+        }));
+      }
+
+      versionSelect.addEventListener("change", () => {
+        applyGraphVariant(versionSelect.value);
+      });
+    }
+
+    async function applyGraphVariant(variantId) {
+      const variant = graphVariants.find((item) => item.id === variantId) || graphVariants[0];
+      versionSelect.value = variant.id;
+      const data = await loadGraphData(variant);
+      renderOverview(data);
+      renderGraph(data);
     }
 
     function el(tag, className, attrs = {}) {
@@ -454,6 +670,31 @@
       return element;
     }
 
+    function stageIcon(name) {
+      const icons = {
+        radar: '<circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="2"></circle><path d="M12 4v3"></path><path d="M12 17v3"></path><path d="M4 12h3"></path><path d="M17 12h3"></path><path d="M12 12l5-5"></path>',
+        document: '<path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v5h5"></path><path d="M9.5 12h7"></path><path d="M9.5 16h5"></path>',
+        blueprint: '<path d="M5 4h14v16H5z"></path><path d="M8 8h8"></path><path d="M8 12h4"></path><path d="M14 12h2v4h-5v-2"></path><path d="M8 16h1"></path>',
+        code: '<path d="M9 8l-4 4 4 4"></path><path d="M15 8l4 4-4 4"></path><path d="M13 5l-2 14"></path>',
+        merge: '<circle cx="7" cy="6" r="2"></circle><circle cx="17" cy="18" r="2"></circle><circle cx="7" cy="18" r="2"></circle><path d="M7 8v8"></path><path d="M9 6h2a6 6 0 0 1 6 6v4"></path>'
+      };
+      const svg = document.createElementNS(namespace, "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("aria-hidden", "true");
+      svg.innerHTML = icons[name] || icons.document;
+      return svg;
+    }
+
+    function sequenceArrowIcon() {
+      const svg = document.createElementNS(namespace, "svg");
+      svg.setAttribute("viewBox", "0 0 44 32");
+      svg.setAttribute("aria-hidden", "true");
+      const arrow = document.createElementNS(namespace, "path");
+      arrow.setAttribute("d", "M3 9 H25 V3 L42 16 L25 29 V23 H3 Z");
+      svg.appendChild(arrow);
+      return svg;
+    }
+
     function renderGraph(data) {
       graphData = data;
       graphEl.querySelectorAll(".layer, .layer-label").forEach((layer) => layer.remove());
@@ -461,7 +702,10 @@
 
       const layers = [...data.layers].sort((a, b) => a.order - b.order);
       for (const layer of layers) {
-        const labelEl = el("div", "layer-label", { text: layer.label || "" });
+        const labelEl = el("div", "layer-label", {
+          "data-layer-id": layer.id,
+          text: layer.label || ""
+        });
         labelEl.style.gridRow = String(layer.order);
         labelEl.style.gridColumn = "1";
 
@@ -472,6 +716,10 @@
         layerEl.style.gridRow = String(layer.order);
         layerEl.style.gridColumn = "2";
         nodeIndex.set(layer.id, layerEl);
+
+        if (layer.frameTitle) {
+          layerEl.appendChild(el("div", "layer-frame-title", { text: layer.frameTitle }));
+        }
 
         if (layer.kind === "module-row") renderModules(layerEl, data.modules || []);
         else renderLayerNodes(layerEl, layer, data.nodes.filter((node) => node.layer === layer.id));
@@ -507,10 +755,19 @@
       for (const node of nodes) {
         const shape = node.shape || defaults.shape || "rect";
         const size = node.size || defaults.size || "medium";
-        const nodeEl = el("div", `node ${shape} ${size}`, {
+        const isStageOutput = layer.kind === "ellipse-row" && node.icon;
+        const nodeEl = el("div", isStageOutput ? "node stage-output" : `node ${shape} ${size}`, {
           "data-id": node.id,
-          text: node.label
+          ...(isStageOutput ? { "data-icon": node.icon } : {})
         });
+        if (isStageOutput) {
+          nodeEl.appendChild(el("div", "stage-output-label", { text: node.label }));
+          const iconWrap = el("div", "stage-output-icon");
+          iconWrap.appendChild(stageIcon(node.icon));
+          nodeEl.appendChild(iconWrap);
+        } else {
+          nodeEl.textContent = node.label;
+        }
         nodeEl.style.gridColumn = String(node.slot);
         row.appendChild(nodeEl);
         nodeIndex.set(node.id, nodeEl);
@@ -523,8 +780,17 @@
       const row = el("div", "modules-row");
       const sorted = [...modules].sort((a, b) => a.order - b.order);
       row.style.setProperty("--module-count", sorted.length);
+      if (sorted.length > 1) {
+        row.classList.add("has-sequence");
+        const columns = [];
+        for (let index = 0; index < sorted.length; index += 1) {
+          columns.push("minmax(0, 1fr)");
+          if (index < sorted.length - 1) columns.push("38px");
+        }
+        row.style.gridTemplateColumns = columns.join(" ");
+      }
 
-      for (const module of sorted) {
+      sorted.forEach((module, index) => {
         const moduleEl = el("section", "module", { "data-id": module.id });
         const title = el("div", "module-title", { text: module.label });
         const grid = el("div", "module-grid");
@@ -551,7 +817,16 @@
         moduleEl.append(title, grid);
         row.appendChild(moduleEl);
         nodeIndex.set(module.id, moduleEl);
-      }
+        nodeIndex.set(`${module.id}:title`, title);
+
+        if (index < sorted.length - 1) {
+          const arrow = el("div", "module-sequence-arrow", {
+            "aria-hidden": "true"
+          });
+          arrow.appendChild(sequenceArrowIcon());
+          row.appendChild(arrow);
+        }
+      });
 
       layerEl.appendChild(row);
     }
@@ -571,6 +846,8 @@
         if (node.loop) drawLoop(node.id, markerCache, defs, graphBox);
       }
 
+      drawStageParabolas(markerCache, defs, graphBox);
+
       for (const edge of graphData.edges) {
         const fromEl = nodeIndex.get(edge.from);
         const toEl = nodeIndex.get(edge.to);
@@ -580,9 +857,44 @@
         const markerId = getMarker(color, markerCache, defs);
         const path = document.createElementNS(namespace, "path");
         path.setAttribute("class", "edge");
-        path.setAttribute("d", routeEdge(fromEl, toEl, graphBox, edge.direction));
+        const d = edge.id && edge.id.startsWith("e.asset-")
+          ? routeStraightEdge(fromEl, toEl, graphBox, edge.direction)
+          : routeEdge(fromEl, toEl, graphBox, edge.direction);
+        path.setAttribute("d", d);
         path.setAttribute("stroke", color);
         path.setAttribute("stroke-width", color === graphData.layout.theme.emphasisEdgeColor ? "1.12" : "1");
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        svgEl.appendChild(path);
+      }
+    }
+
+    function drawStageParabolas(markerCache, defs, graphBox) {
+      const flows = graphData.stageParabolas || [];
+      const color = graphData.layout.theme.defaultEdgeColor;
+      const markerId = getMarker(color, markerCache, defs);
+
+      for (const flow of flows) {
+        const fromEl = nodeIndex.get(flow.from);
+        const viaEl = nodeIndex.get(`${flow.through}:title`);
+        const toEl = nodeIndex.get(flow.to);
+        if (!fromEl || !viaEl || !toEl) continue;
+
+        const startBox = box(fromEl, graphBox);
+        const viaBox = box(viaEl, graphBox);
+        const endBox = box(toEl, graphBox);
+        const start = { x: startBox.cx, y: startBox.bottom - 2 };
+        const vertex = { x: viaBox.cx, y: viaBox.cy };
+        const end = { x: endBox.cx, y: endBox.bottom - 2 };
+        const control = {
+          x: 2 * vertex.x - (start.x + end.x) / 2,
+          y: 2 * vertex.y - (start.y + end.y) / 2
+        };
+
+        const path = document.createElementNS(namespace, "path");
+        path.setAttribute("class", "edge stage-parabola");
+        path.setAttribute("d", `M ${start.x} ${start.y} Q ${control.x} ${control.y}, ${end.x} ${end.y}`);
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", "1.08");
         path.setAttribute("marker-end", `url(#${markerId})`);
         svgEl.appendChild(path);
       }
@@ -649,6 +961,14 @@
 
       const bend = Math.max(26, Math.abs(dx) * 0.4);
       return `M ${start.x} ${start.y} C ${start.x + Math.sign(dx) * bend} ${start.y}, ${end.x - Math.sign(dx) * bend} ${end.y}, ${end.x} ${end.y}`;
+    }
+
+    function routeStraightEdge(fromEl, toEl, graphBox, direction) {
+      const from = box(fromEl, graphBox);
+      const to = box(toEl, graphBox);
+      const start = anchor(from, direction || "down", true, to, fromEl, toEl);
+      const end = anchor(to, direction || "down", false, from, toEl, fromEl);
+      return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
     }
 
     function routeChildToModule(from, moduleRect, direction) {
@@ -772,11 +1092,11 @@
       svgEl.appendChild(path);
     }
 
-    loadGraphData().then((data) => {
-      renderOverview(data);
-      renderGraph(data);
+    renderToolbar();
+    applyGraphVariant(graphVariants[0].id);
+    window.addEventListener("resize", () => {
+      if (graphData) requestAnimationFrame(drawEdges);
     });
-    window.addEventListener("resize", () => requestAnimationFrame(drawEdges));
   </script>
 </body>
 </html>
