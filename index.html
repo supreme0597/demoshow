@@ -271,6 +271,15 @@
       user-select: none;
     }
 
+    .asset-clickable {
+      cursor: pointer;
+    }
+
+    .asset-clickable:hover {
+      outline: 2px solid rgba(49, 92, 143, 0.18);
+      outline-offset: 3px;
+    }
+
     .node.ellipse {
       width: 176px;
       height: 56px;
@@ -430,6 +439,151 @@
       vector-effect: non-scaling-stroke;
     }
 
+    .asset-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(20, 20, 20, 0.28);
+    }
+
+    .asset-modal.is-open {
+      display: flex;
+    }
+
+    .asset-dialog {
+      width: min(680px, calc(100vw - 44px));
+      max-height: min(720px, calc(100vh - 44px));
+      overflow: hidden;
+      border: 1px solid rgba(39, 51, 107, 0.42);
+      border-radius: 8px;
+      background: rgba(251, 251, 247, 0.98);
+      box-shadow: 0 18px 50px rgba(20, 20, 20, 0.22);
+    }
+
+    .asset-dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid rgba(39, 51, 107, 0.18);
+    }
+
+    .asset-dialog-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .asset-dialog-title {
+      margin-top: 5px;
+      color: #1b234f;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .asset-close {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      color: #27336b;
+      border: 1px solid rgba(39, 51, 107, 0.25);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.68);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .asset-dialog-body {
+      display: grid;
+      grid-template-columns: 132px minmax(0, 1fr);
+      gap: 11px 16px;
+      max-height: calc(min(720px, 100vh - 44px) - 92px);
+      overflow: auto;
+      padding: 16px 20px 20px;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .asset-field-label {
+      color: #4e5a65;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .asset-field-value {
+      min-width: 0;
+      color: #1f2428;
+    }
+
+    .asset-empty {
+      color: #8a9298;
+      font-weight: 700;
+    }
+
+    .asset-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .asset-tag,
+    .asset-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .asset-tag {
+      color: #27336b;
+      background: rgba(39, 51, 107, 0.08);
+      border: 1px solid rgba(39, 51, 107, 0.12);
+    }
+
+    .asset-status.done {
+      color: #136c3d;
+      background: rgba(87, 189, 132, 0.18);
+      border: 1px solid rgba(87, 189, 132, 0.35);
+    }
+
+    .asset-status.todo {
+      color: #646b70;
+      background: rgba(95, 103, 109, 0.14);
+      border: 1px solid rgba(95, 103, 109, 0.2);
+    }
+
+    .asset-links {
+      display: grid;
+      gap: 6px;
+    }
+
+    .asset-links a {
+      color: #1f6c9d;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .asset-links a:hover {
+      text-decoration: underline;
+    }
+
     @media (max-width: 1040px) {
       .stage {
         width: 100vw;
@@ -468,8 +622,22 @@
     </section>
   </main>
 
+  <div id="asset-modal" class="asset-modal" role="dialog" aria-modal="true" aria-labelledby="asset-dialog-title">
+    <section class="asset-dialog">
+      <header class="asset-dialog-header">
+        <div>
+          <div class="asset-dialog-kicker">Asset Detail</div>
+          <div id="asset-dialog-title" class="asset-dialog-title"></div>
+        </div>
+        <button id="asset-close" class="asset-close" type="button" aria-label="关闭">×</button>
+      </header>
+      <div id="asset-dialog-body" class="asset-dialog-body"></div>
+    </section>
+  </div>
+
   <script src="graph-data.fallback.js" charset="utf-8"></script>
   <script src="graph-data.mock.fallback.js" charset="utf-8"></script>
+  <script src="graph-config.js" charset="utf-8"></script>
   <script id="fallback-graph-data" type="application/json">
 {
   "meta": {
@@ -591,23 +759,36 @@
     const graphEl = document.querySelector("#graph");
     const svgEl = document.querySelector("#edge-layer");
     const versionSelect = document.querySelector("#version-select");
+    const assetModal = document.querySelector("#asset-modal");
+    const assetTitleEl = document.querySelector("#asset-dialog-title");
+    const assetBodyEl = document.querySelector("#asset-dialog-body");
+    const assetCloseEl = document.querySelector("#asset-close");
     const nodeIndex = new Map();
     const namespace = "http://www.w3.org/2000/svg";
-    const graphVariants = [
+    const phaseByModule = {
+      "module.understand": "理解",
+      "module.plan": "规划",
+      "module.execute": "执行",
+      "module.verify": "验证"
+    };
+    const defaultGraphSources = [
       {
         id: "real",
-        label: "真实数据 Demo",
-        file: "graph-data.json",
+        label: "RTOS NEXT",
+        url: "graph-data.json",
         fallbackKey: "FALLBACK_GRAPH_DATA",
         inlineFallback: true
       },
       {
         id: "mock",
         label: "Mock 数据 Demo",
-        file: "graph-data.mock.json",
+        url: "graph-data.mock.json",
         fallbackKey: "MOCK_GRAPH_DATA"
       }
     ];
+    const graphVariants = Array.isArray(window.GRAPH_DATA_SOURCES) && window.GRAPH_DATA_SOURCES.length
+      ? window.GRAPH_DATA_SOURCES
+      : defaultGraphSources;
     const graphCache = new Map();
     let graphData;
 
@@ -615,9 +796,17 @@
       if (graphCache.has(variant.id)) return graphCache.get(variant.id);
 
       try {
-        const response = await fetch(variant.file, { cache: "no-store" });
-        if (!response.ok) throw new Error(`${variant.file} not available`);
-        const data = await response.json();
+        const url = variant.url || variant.file || variant.api;
+        if (!url) throw new Error(`${variant.label} 缺少 url 配置`);
+        const response = await fetch(url, {
+          cache: "no-store",
+          method: variant.method || "GET",
+          headers: variant.headers || {},
+          credentials: variant.credentials || "same-origin",
+          body: variant.body ? JSON.stringify(variant.body) : undefined
+        });
+        if (!response.ok) throw new Error(`${url} not available`);
+        const data = normalizeGraphPayload(await response.json());
         graphCache.set(variant.id, data);
         return data;
       } catch {
@@ -635,6 +824,14 @@
 
         throw new Error(`${variant.label} 数据加载失败`);
       }
+    }
+
+    function normalizeGraphPayload(payload) {
+      if (payload && payload.layers && payload.nodes && payload.modules) return payload;
+      if (payload && payload.data && payload.data.layers) return payload.data;
+      if (payload && payload.graph && payload.graph.layers) return payload.graph;
+      if (payload && payload.data && payload.data.graph && payload.data.graph.layers) return payload.data.graph;
+      throw new Error("API 返回的数据不是有效图谱 JSON");
     }
 
     function renderToolbar() {
@@ -668,6 +865,98 @@
         else element.setAttribute(key, value);
       }
       return element;
+    }
+
+    function makeAssetClickable(element, item, context = {}) {
+      element.classList.add("asset-clickable");
+      element.setAttribute("tabindex", "0");
+      element.setAttribute("role", "button");
+      element.setAttribute("aria-label", `查看资产：${item.label || item.id}`);
+      const open = (event) => {
+        event.stopPropagation();
+        openAssetModal(item, context);
+      };
+      element.addEventListener("click", open);
+      element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open(event);
+        }
+      });
+    }
+
+    function assetDetailFor(item) {
+      const asset = item.asset || {};
+      return {
+        name: asset.name || "未配置",
+        type: asset.type || "其他",
+        dependencies: Array.isArray(asset.dependencies) ? asset.dependencies : [],
+        links: Array.isArray(asset.links) ? asset.links : [],
+        stages: Array.isArray(asset.stages) ? asset.stages : [],
+        effect: asset.effect || "未配置",
+        implemented: Boolean(asset.implemented),
+        note: asset.note || "未配置"
+      };
+    }
+
+    function addAssetRow(label, valueNode) {
+      assetBodyEl.appendChild(el("div", "asset-field-label", { text: label }));
+      const value = el("div", "asset-field-value");
+      if (typeof valueNode === "string") value.textContent = valueNode;
+      else value.appendChild(valueNode);
+      assetBodyEl.appendChild(value);
+    }
+
+    function emptyValue() {
+      return el("span", "asset-empty", { text: "-" });
+    }
+
+    function tagList(items) {
+      const wrap = el("div", "asset-tags");
+      const values = (items || [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+      if (values.length === 0) return emptyValue();
+      for (const item of values) wrap.appendChild(el("span", "asset-tag", { text: item }));
+      return wrap;
+    }
+
+    function linkList(links) {
+      const wrap = el("div", "asset-links");
+      const values = (links || []).filter((link) => {
+        return link && String(link.url || "").trim();
+      });
+      for (const link of values) {
+        wrap.appendChild(el("a", "", {
+          href: link.url,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          text: link.label || link.url
+        }));
+      }
+      if (!wrap.children.length) return emptyValue();
+      return wrap;
+    }
+
+    function openAssetModal(item, context) {
+      const detail = assetDetailFor(item);
+      assetTitleEl.textContent = detail.name;
+      assetBodyEl.replaceChildren();
+      addAssetRow("资产名", detail.name);
+      addAssetRow("类型", tagList([detail.type]));
+      addAssetRow("依赖", tagList(detail.dependencies));
+      addAssetRow("链接", linkList(detail.links));
+      addAssetRow("使用阶段", tagList(detail.stages));
+      addAssetRow("作用和效果", detail.effect || "-");
+      addAssetRow("是否已实现", el("span", `asset-status ${detail.implemented ? "done" : "todo"}`, {
+        text: detail.implemented ? "已实现" : "未实现"
+      }));
+      addAssetRow("备注", detail.note || "-");
+      assetModal.classList.add("is-open");
+    }
+
+    function closeAssetModal() {
+      assetModal.classList.remove("is-open");
     }
 
     function stageIcon(name) {
@@ -741,7 +1030,12 @@
       overviewEl.replaceChildren();
       nodes.forEach((node, index) => {
         const label = typeof node === "string" ? node : node.label;
-        inner.appendChild(el("div", "overview-node", { text: label }));
+        const item = typeof node === "string"
+          ? { id: `overview.${index}`, label }
+          : node;
+        const nodeEl = el("div", "overview-node", { text: label });
+        makeAssetClickable(nodeEl, item, { type: "overview" });
+        inner.appendChild(nodeEl);
         if (index < nodes.length - 1) inner.appendChild(el("span", "overview-arrow"));
       });
       overviewEl.appendChild(inner);
@@ -768,6 +1062,7 @@
         } else {
           nodeEl.textContent = node.label;
         }
+        makeAssetClickable(nodeEl, node, { type: "node", layerId: layer.id });
         nodeEl.style.gridColumn = String(node.slot);
         row.appendChild(nodeEl);
         nodeIndex.set(node.id, nodeEl);
@@ -792,6 +1087,7 @@
 
       sorted.forEach((module, index) => {
         const moduleEl = el("section", "module", { "data-id": module.id });
+        makeAssetClickable(moduleEl, module, { type: "module" });
         const title = el("div", "module-title", { text: module.label });
         const grid = el("div", "module-grid");
         grid.style.setProperty("--rows", module.grid.rows);
@@ -810,6 +1106,11 @@
             textNode.appendChild(el("span", "loop-badge", { text: "loop" }));
           }
 
+          makeAssetClickable(textNode, node, {
+            type: "node",
+            layerId: module.layer,
+            moduleId: module.id
+          });
           grid.appendChild(textNode);
           nodeIndex.set(node.id, textNode);
         }
@@ -1091,6 +1392,14 @@
       path.setAttribute("marker-end", `url(#${markerId})`);
       svgEl.appendChild(path);
     }
+
+    assetCloseEl.addEventListener("click", closeAssetModal);
+    assetModal.addEventListener("click", (event) => {
+      if (event.target === assetModal) closeAssetModal();
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeAssetModal();
+    });
 
     renderToolbar();
     applyGraphVariant(graphVariants[0].id);
