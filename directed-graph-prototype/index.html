@@ -786,11 +786,29 @@
         fallbackKey: "MOCK_GRAPH_DATA"
       }
     ];
-    const graphVariants = Array.isArray(window.GRAPH_DATA_SOURCES) && window.GRAPH_DATA_SOURCES.length
+    let graphVariants = Array.isArray(window.GRAPH_DATA_SOURCES) && window.GRAPH_DATA_SOURCES.length
       ? window.GRAPH_DATA_SOURCES
       : defaultGraphSources;
     const graphCache = new Map();
     let graphData;
+
+    async function loadGraphSources() {
+      if (!window.GRAPH_SOURCE_LIST_URL) return;
+
+      try {
+        const response = await fetch(window.GRAPH_SOURCE_LIST_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error("graph source list not available");
+        const payload = await response.json();
+        const sources = Array.isArray(payload) ? payload : payload.data;
+        if (Array.isArray(sources) && sources.length) {
+          graphVariants = sources;
+        }
+      } catch {
+        graphVariants = Array.isArray(window.GRAPH_DATA_SOURCES) && window.GRAPH_DATA_SOURCES.length
+          ? window.GRAPH_DATA_SOURCES
+          : defaultGraphSources;
+      }
+    }
 
     async function loadGraphData(variant) {
       if (graphCache.has(variant.id)) return graphCache.get(variant.id);
@@ -1401,8 +1419,10 @@
       if (event.key === "Escape") closeAssetModal();
     });
 
-    renderToolbar();
-    applyGraphVariant(graphVariants[0].id);
+    loadGraphSources().finally(() => {
+      renderToolbar();
+      applyGraphVariant(graphVariants[0].id);
+    });
     window.addEventListener("resize", () => {
       if (graphData) requestAnimationFrame(drawEdges);
     });

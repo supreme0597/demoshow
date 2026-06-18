@@ -13,3 +13,6 @@ window.GRAPH_DATA_SOURCES = [
     fallbackKey: "MOCK_GRAPH_DATA"
   }
 ];
+
+// 接入后端版本列表接口时可启用：
+// window.GRAPH_SOURCE_LIST_URL = "/api/graph-json/versions";
